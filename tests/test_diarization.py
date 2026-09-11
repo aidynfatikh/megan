@@ -99,6 +99,39 @@ async def test_invalid_runtime_output_is_rejected(tmp_path, monkeypatch, raw):
         await diarize(settings, tmp_path / "audio.wav", tmp_path, 4)
 
 
+@pytest.mark.parametrize("final_duration,accepted", [("1.909", True), ("1.910", False)])
+async def test_rttm_final_frame_rounding_preserves_speakers_without_expanding_tolerance(
+    tmp_path, monkeypatch, final_duration, accepted
+):
+    # Real 120-second recording: 118.171 + 1.909 becomes 120.08000000000001.
+    model = tmp_path / "model.gguf"
+    model.write_bytes(b"model")
+
+    async def run(*args, **kwargs):
+        from pathlib import Path
+
+        if "--version" in args:
+            return b"nemo-speech 0.1.0", b""
+        Path(args[args.index("--output") + 1]).write_text(
+            "SPEAKER audio 1 0.000 7.279 <NA> <NA> speaker_1 <NA> <NA>\n"
+            f"SPEAKER audio 1 118.171 {final_duration} <NA> <NA> speaker_1 <NA> <NA>\n"
+        )
+        return b"", b""
+
+    monkeypatch.setattr("backend.pipeline.diarize.run_process", run)
+    settings = Settings(
+        _env_file=None, diarization_backend="sortformer_cpp", diarization_model_path=model
+    )
+    if not accepted:
+        with pytest.raises(DiarizationError):
+            await diarize(settings, tmp_path / "audio.wav", tmp_path, 120)
+        return
+    result = await diarize(settings, tmp_path / "audio.wav", tmp_path, 120)
+    assert result.turns == [turn(0, 7.279, "speaker_1"), turn(118.171, 120, "speaker_1")]
+    saved = json.loads((tmp_path / "diarization.json").read_text())
+    assert saved["turns"][-1]["end"] == 120
+
+
 @pytest.mark.parametrize(
     "backend,suffix", [("sortformer_cpp", ".gguf"), ("sortformer_nemo", ".nemo")]
 )

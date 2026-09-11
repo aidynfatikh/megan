@@ -132,7 +132,8 @@ async def diarize(settings: Settings, audio: Path, directory: Path, duration: fl
         if len({t.speaker for t in turns}) > 4:
             raise ValueError("More than four speakers returned")
         for t in turns:
-            if t.end > duration + 0.08 or t.start >= duration:
+            # RTTM start + duration can round just above the allowed final frame.
+            if t.end > duration + 0.08 + 1e-9 or t.start >= duration:
                 raise ValueError("Speaker timestamps extend beyond the recording")
             t.end = min(t.end, duration)
         result = DiarizationResult(turns=turns, model_sha256=digest, runtime=runtime)

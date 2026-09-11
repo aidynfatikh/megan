@@ -69,6 +69,14 @@ Raw local artifacts are in `.local/evaluation/` and are ignored by Git. Timings 
 
 Artifacts: `.local/evaluation/sortformer-meeting/` contains the synthetic recording, expected voice turns, initial/final reports, and exports. `.local/evaluation/model-cases/speaker-assignments*.json` contains the real Qwen regression output. These remain outside Git.
 
+## Real YouTube meeting test (2026-09-11)
+
+See [YOUTUBE_TEST.md](YOUTUBE_TEST.md) for source intervals, retained jobs, review findings, and reproduction details. A real English GitLab meeting excerpt completed in 67.63 seconds for two minutes of audio after a timestamp-rounding fix, and a five-minute excerpt completed in 143.56 seconds. The same short audio with artificial pink noise completed in 82.89 seconds. These runs used the existing Mac models and real PostgreSQL/API flow; JSON/CSV/ICS exports and audio range responses were checked.
+
+The first two-minute run exposed floating-point rounding at the diarizer's final-frame bound, disabling all speaker labels. A failing regression was added, a 1e-9-second numerical tolerance fixed the boundary, and the identical audio then completed diarization. All 30 diarization/runtime tests and focused Ruff checks passed. This focused verification does not replace the earlier full-suite result above.
+
+Report accuracy remains incomplete: the longer excerpt converted completed work into new tasks, some owners/conditions lacked support, and added noise altered a name and removed a follow-up detail. Automatic YouTube captions were a secondary comparison, not human ground truth. No crowded-room microphone test, live capture, Russian/Kazakh audio test, or RTX acceptance was performed in this pass.
+
 ## Fatikh's acceptance pass
 
 1. Confirm OS, driver, GPU/VRAM, and system RAM; use the CUDA profile and pinned files.

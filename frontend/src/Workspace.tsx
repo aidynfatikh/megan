@@ -11,18 +11,18 @@ import {
   Clock3,
   FileText,
   FolderOpen,
-  HelpCircle,
   LoaderCircle,
   MessageSquare,
   Plus,
   ListTodo,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Send,
-  Settings2,
   X,
 } from "lucide-react";
 import { api, formatDate, timestamp } from "./api";
-import type { Action, Answer, Health, Job, Source } from "./types";
+import type { Action, Answer, Job, Source } from "./types";
 import { ReportView } from "./components/ReportView";
 import { UploadView } from "./components/UploadView";
 import { EditTask } from "./components/EditTask";
@@ -30,6 +30,9 @@ import { Transcript } from "./components/Transcript";
 import { ProcessingStages } from "./components/ProcessingStages";
 import { Dashboard } from "./components/Dashboard";
 import { Brand } from "./components/Brand";
+import { ProcessingStatus } from "./components/ProcessingStatus";
+import { MeetingListSkeleton, MeetingSkeleton } from "./components/Skeletons";
+import { useLocalHealth } from "./useLocalHealth";
 import { navigate, protectCapture } from "./navigation";
 
 const stageLabels: Record<string, string> = {
@@ -46,22 +49,43 @@ const stageLabels: Record<string, string> = {
   done: "Ready to review",
 };
 
+const sidebarPreference = "megan.sidebar.collapsed";
+
+function readSidebarPreference() {
+  try {
+    return localStorage.getItem(sidebarPreference) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function Workspace({ route }: { route: string }) {
   const [loading, setLoading] = useState(true);
-  const [loadingJob, setLoadingJob] = useState(false);
+  const [loadingJob, setLoadingJob] = useState(
+    () => route.startsWith("/meetings/") || route === "/example",
+  );
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    readSidebarPreference,
+  );
+  const collapseButton = useRef<HTMLButtonElement>(null);
+  const expandButton = useRef<HTMLButtonElement>(null);
   const activeJobId = useRef<string | null>(null);
   const sidebar = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const [health, setHealth] = useState<Health | null>(null);
+  const {
+    health,
+    checking,
+    hasChecked,
+    refresh: refreshHealth,
+  } = useLocalHealth();
+  const [historyError, setHistoryError] = useState("");
   const [history, setHistory] = useState<Job[]>([]);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"report" | "transcript">("report");
-  const [statusOpen, setStatusOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const [editing, setEditing] = useState<Action | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -84,39 +108,21 @@ export default function Workspace({ route }: { route: string }) {
     async function refresh() {
       if (refreshing) return;
       refreshing = true;
-      const results = await Promise.allSettled([
-        api.health(controller.signal),
-        api.jobs(controller.signal),
-      ]);
-      refreshing = false;
-      if (controller.signal.aborted) return;
-      setLoading(false);
-      if (results[0].status === "fulfilled") {
-        setHealth(results[0].value);
-        setError((previous) =>
-          previous ===
-          "Cannot reach the local API. Start Megan and refresh this page."
-            ? ""
-            : previous,
-        );
-      } else {
-        setHealth(null);
-        setError(
-          "Cannot reach the local API. Start Megan and refresh this page.",
-        );
+      try {
+        const meetings = await api.jobs(controller.signal);
+        if (!controller.signal.aborted) {
+          setHistory(meetings);
+          setHistoryError("");
+        }
+      } catch {
+        if (!controller.signal.aborted)
+          setHistoryError(
+            "Couldn’t load your meetings. We’ll try again shortly.",
+          );
+      } finally {
+        refreshing = false;
+        if (!controller.signal.aborted) setLoading(false);
       }
-      if (results[1].status === "fulfilled") {
-        setHistory(results[1].value);
-        setError((previous) =>
-          previous ===
-          "Couldn’t load your meetings. Check System status; we’ll try again shortly."
-            ? ""
-            : previous,
-        );
-      } else if (results[0].status === "fulfilled")
-        setError(
-          "Couldn’t load your meetings. Check System status; we’ll try again shortly.",
-        );
     }
     void refresh();
     const interval = setInterval(() => void refresh(), 10000);
@@ -208,6 +214,38 @@ export default function Workspace({ route }: { route: string }) {
     navigate(path);
   }
 
+  function toggleSidebar(collapsed: boolean) {
+    setSidebarCollapsed(collapsed);
+    try {
+      localStorage.setItem(sidebarPreference, collapsed ? "1" : "0");
+    } catch {
+      // The toggle still works when browser storage is unavailable.
+    }
+    requestAnimationFrame(() => {
+      // Focusing the clipped header must not scroll the sidebar during expansion.
+      (collapsed ? expandButton : collapseButton).current?.focus({
+        preventScroll: true,
+      });
+    });
+  }
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeMobileMenu = () => {
+      if (desktop.matches) setMobileMenu(false);
+    };
+    const syncPreference = (event: StorageEvent) => {
+      if (event.key === sidebarPreference || event.key === null)
+        setSidebarCollapsed(readSidebarPreference());
+    };
+    desktop.addEventListener?.("change", closeMobileMenu);
+    window.addEventListener("storage", syncPreference);
+    return () => {
+      desktop.removeEventListener?.("change", closeMobileMenu);
+      window.removeEventListener("storage", syncPreference);
+    };
+  }, []);
+
   useEffect(() => {
     if (!mobileMenu) return;
     const previousOverflow = document.body.style.overflow;
@@ -215,7 +253,7 @@ export default function Workspace({ route }: { route: string }) {
     const focusables = () =>
       Array.from(
         sidebar.current?.querySelectorAll<HTMLElement>(
-          "a[href], button:not(:disabled), input, select",
+          "a[href], button:not(:disabled):not([data-desktop-only]), input, select",
         ) ?? [],
       );
     focusables()[0]?.focus();
@@ -314,7 +352,9 @@ export default function Workspace({ route }: { route: string }) {
   const report = job?.report;
 
   return (
-    <div className={`app-shell ${mobileMenu ? "menu-is-open" : ""}`}>
+    <div
+      className={`app-shell ${mobileMenu ? "menu-is-open" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+    >
       <a
         className="skip-link"
         href="#workspace-main"
@@ -333,6 +373,7 @@ export default function Workspace({ route }: { route: string }) {
         />
       )}
       <aside
+        id="workspace-sidebar"
         ref={sidebar}
         className="sidebar"
         role={mobileMenu ? "dialog" : undefined}
@@ -348,35 +389,81 @@ export default function Workspace({ route }: { route: string }) {
             <X size={20} />
           </button>
         )}
-        <a className="brand" href="#" aria-label="Megan home">
-          <Brand />
-        </a>
-        <button className="new-meeting" onClick={() => goTo("/new/record")}>
+        <div className="sidebar-brand-row">
+          <a
+            className="brand sidebar-full-brand"
+            href="#"
+            aria-label="Megan home"
+          >
+            <Brand />
+          </a>
+          <button
+            ref={collapseButton}
+            className="sidebar-collapse icon-button"
+            data-desktop-only
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            aria-expanded="true"
+            aria-controls="workspace-sidebar"
+            onClick={() => toggleSidebar(true)}
+          >
+            <PanelLeftClose size={19} />
+          </button>
+          <button
+            ref={expandButton}
+            className="sidebar-expand"
+            data-desktop-only
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            aria-expanded="false"
+            aria-controls="workspace-sidebar"
+            onClick={() => toggleSidebar(false)}
+          >
+            <Brand compact />
+            <PanelLeftOpen className="sidebar-expand-icon" size={20} />
+          </button>
+        </div>
+        <button
+          className="new-meeting"
+          aria-label="New meeting"
+          title={sidebarCollapsed ? "New meeting" : undefined}
+          onClick={() => goTo("/new/record")}
+        >
           <Plus size={17} />
-          New meeting
+          <span className="sidebar-nav-label">New meeting</span>
         </button>
         <button
-          className={`nav-item ${route !== "/actions" ? "active" : ""}`}
+          className={`nav-item ${route !== "/actions" && route !== "/example" ? "active" : ""}`}
+          aria-label={sidebarCollapsed ? "All meetings" : undefined}
+          title={sidebarCollapsed ? "All meetings" : undefined}
           onClick={() => goTo("/workspace")}
         >
           <FolderOpen size={17} />
-          All meetings<span className="nav-count">{history.length}</span>
+          <span className="sidebar-nav-label">All meetings</span>
+          {!loading && <span className="nav-count">{history.length}</span>}
         </button>
         <button
           className={`nav-item ${route === "/actions" ? "active" : ""}`}
+          aria-label={sidebarCollapsed ? "Action items" : undefined}
+          title={sidebarCollapsed ? "Action items" : undefined}
           onClick={() => goTo("/actions")}
         >
-          <ListTodo size={17} /> Action items
-          <span className="nav-count">
-            {history.reduce(
-              (sum, entry) => sum + (entry.report?.action_items.length ?? 0),
-              0,
-            )}
-          </span>
+          <ListTodo size={17} />{" "}
+          <span className="sidebar-nav-label">Action items</span>
+          {!loading && (
+            <span className="nav-count">
+              {history.reduce(
+                (sum, entry) => sum + (entry.report?.action_items.length ?? 0),
+                0,
+              )}
+            </span>
+          )}
         </button>
         <div className="sidebar-label recent-label">RECENT MEETINGS</div>
         <div className="history-list">
-          {filteredHistory.length ? (
+          {loading ? (
+            <MeetingListSkeleton compact label="Loading recent meetings" />
+          ) : filteredHistory.length ? (
             filteredHistory.slice(0, 6).map((entry) => (
               <button
                 key={entry.id}
@@ -399,29 +486,19 @@ export default function Workspace({ route }: { route: string }) {
             </p>
           )}
         </div>
-        <div className="sidebar-bottom">
+        <div className="sidebar-footer">
           <button
-            className="nav-item"
-            onClick={() => {
-              setHelpOpen(!helpOpen);
-              setStatusOpen(false);
-              setMobileMenu(false);
-            }}
+            className="sidebar-sample"
+            aria-label="View sample report"
+            aria-current={route === "/example" ? "page" : undefined}
+            title="View sample report"
+            onClick={openExample}
           >
-            <HelpCircle size={16} />
-            How it works
-          </button>
-          <button
-            className="nav-item"
-            onClick={() => {
-              setStatusOpen(!statusOpen);
-              setHelpOpen(false);
-              setMobileMenu(false);
-            }}
-          >
-            <Settings2 size={16} />
-            System status
-            <span className={`status-dot ${health?.ready ? "ready" : ""}`} />
+            <FileText size={18} aria-hidden="true" />
+            <span className="sidebar-nav-label">
+              <strong>View sample report</strong>
+              <small>No recording needed.</small>
+            </span>
           </button>
         </div>
       </aside>
@@ -452,119 +529,56 @@ export default function Workspace({ route }: { route: string }) {
             <a href="#/workspace" className="topbar-home">
               Your workspace <ArrowUpRight size={14} />
             </a>
-            <span className="local-badge">
-              <span />
-              Local processing
-            </span>
+            <ProcessingStatus
+              key={route}
+              health={health}
+              checking={checking}
+              hasChecked={hasChecked}
+              onRefresh={refreshHealth}
+            />
           </div>
         </header>
         <main
           id="workspace-main"
           tabIndex={-1}
-          className={`main-content ${job ? "has-meeting" : ""}`}
+          className={`main-content ${job || loadingJob ? "has-meeting" : ""}`}
         >
-          {error && (
+          {(error || (health?.database && historyError)) && (
             <div className="notice error" role="alert">
               <AlertCircle size={17} />
-              <span>{error}</span>
+              <span>{error || historyError}</span>
               <button
                 className="icon-button"
                 aria-label="Dismiss error"
-                onClick={() => setError("")}
+                onClick={() => {
+                  setError("");
+                  setHistoryError("");
+                }}
               >
                 <X size={16} />
               </button>
             </div>
           )}
-          {statusOpen && (
-            <section className="panel status-panel">
-              <div className="section-heading">
-                <h2>System status</h2>
-                <button
-                  className="icon-button section-meta"
-                  aria-label="Close system status"
-                  onClick={() => setStatusOpen(false)}
-                >
-                  <X size={17} />
-                </button>
-              </div>
-              <div className="status-grid">
-                {[
-                  ["PostgreSQL", health?.database],
-                  ["Audio tools", health?.ffmpeg],
-                  ["Whisper weights", health?.asr],
-                  ["Ollama model", health?.ollama],
-                  ...(health && health.diarization !== "none"
-                    ? [["Sortformer (optional)", health.diarization_ready]]
-                    : []),
-                ].map(([label, ready]) => (
-                  <div key={String(label)}>
-                    <span className={`status-dot ${ready ? "ready" : ""}`} />
-                    <strong>{label}</strong>
-                    <small>{ready ? "Available" : "Setup needed"}</small>
-                  </div>
-                ))}
-              </div>
-              <p className="muted">
-                ASR: {health?.asr_backend ?? "—"} · LLM: {health?.llm ?? "—"}.
-                {health?.diarization === "none"
-                  ? " Speaker separation is disabled. "
-                  : " "}
-                Run the setup and preflight commands in the README for missing
-                services.
-              </p>
-            </section>
-          )}
-          {helpOpen && (
-            <section className="panel help-panel">
-              <div className="section-heading">
-                <h2>How it works</h2>
-                <button
-                  className="icon-button section-meta"
-                  aria-label="Close help"
-                  onClick={() => setHelpOpen(false)}
-                >
-                  <X size={17} />
-                </button>
-              </div>
-              <p>
-                Record your microphone or upload a recording and provide its
-                meeting date when known. Local models transcribe the audio and
-                organize the outcomes. Click any source timestamp to check the
-                original words, edit a task when needed, and export your report.
-              </p>
-              <p className="muted">
-                Source matching checks quotations in the transcript. It does not
-                guarantee that recognition or interpretation is correct. Your
-                review matters.
-              </p>
-            </section>
-          )}
-
-          {loadingJob ? (
-            <div className="app-loading" role="status">
-              <LoaderCircle className="spin" size={22} /> Opening your meeting…
-            </div>
+          {route.startsWith("/new") ? (
+            <UploadView
+              key={route}
+              initialMode={route === "/new/record" ? "record" : "upload"}
+              health={health}
+              submitting={submitting}
+              onUpload={upload}
+              onExample={openExample}
+            />
+          ) : loadingJob ? (
+            <MeetingSkeleton />
           ) : !job ? (
-            route.startsWith("/new") ? (
-              <UploadView
-                key={route}
-                initialMode={route === "/new/record" ? "record" : "upload"}
-                health={health}
-                submitting={submitting}
-                onUpload={upload}
-                onExample={openExample}
-              />
-            ) : (
-              <Dashboard
-                history={history}
-                health={health}
-                loading={loading}
-                query={query}
-                onQuery={setQuery}
-                actionsOnly={route === "/actions"}
-              />
-            )
+            <Dashboard
+              history={history}
+              health={health}
+              loading={loading}
+              query={query}
+              onQuery={setQuery}
+              actionsOnly={route === "/actions"}
+            />
           ) : (
             <>
               <button className="back-link" onClick={() => selectJob(null)}>

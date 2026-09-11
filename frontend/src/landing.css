@@ -659,6 +659,9 @@ html {
   gap: 100px;
   padding-block: clamp(48px, 5vw, 72px);
 }
+.faq-section > div:first-child {
+  align-self: center;
+}
 .faq-section > div > p {
   font-size: 13px;
   color: #85877b;

@@ -15,6 +15,23 @@ vi.mock("./api", async (importOriginal) => ({
     chat: vi.fn(),
   },
 }));
+const healthy: Health = {
+  ready: true,
+  database: true,
+  asr: true,
+  ollama: true,
+  ffmpeg: true,
+  busy: false,
+  local_only: true,
+  asr_backend: "whisper_cpp",
+  asr_model: "whisper",
+  llm: "qwen",
+  diarization: "none",
+  diarization_ready: false,
+  chat_enabled: true,
+  max_upload_mb: 60,
+  max_duration_sec: 600,
+};
 const sample = rawExample as Job;
 const ready = {
   ...sample,
@@ -30,10 +47,8 @@ const failed = {
   status: "failed" as const,
 };
 beforeEach(() => {
-  vi.mocked(api.health).mockResolvedValue({
-    ready: true,
-    busy: false,
-  } as Health);
+  localStorage.removeItem("megan.sidebar.collapsed");
+  vi.mocked(api.health).mockResolvedValue(healthy);
   vi.mocked(api.jobs).mockResolvedValue([ready, failed]);
   vi.mocked(api.job).mockResolvedValue(ready);
   vi.mocked(api.example).mockResolvedValue(sample);
@@ -59,9 +74,6 @@ test("landing source interaction explains evidence and opens the real workspace"
     screen.getByText("Illustrative transcript · no audio"),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("link", { name: "Open workspace" }));
-  await act(async () => {
-    await vi.dynamicImportSettled();
-  });
   expect(
     await screen.findByRole("heading", { name: "Meetings" }),
   ).toBeInTheDocument();
@@ -121,7 +133,7 @@ test("a late meeting response cannot replace the dashboard after navigation", as
     }),
   );
   const user = start("#/meetings/slow");
-  await screen.findByText("Opening your meeting…");
+  await screen.findByRole("status", { name: "Loading meeting" });
   await user.click(screen.getByRole("button", { name: /All meetings/ }));
   await screen.findByRole("heading", { name: "Meetings" });
   await act(async () => {
@@ -132,9 +144,8 @@ test("a late meeting response cannot replace the dashboard after navigation", as
 
 test("meeting chat explains a busy service and submits once it is available", async () => {
   vi.mocked(api.health).mockResolvedValue({
-    ready: true,
+    ...healthy,
     busy: true,
-    chat_enabled: true,
   } as Health);
   const user = start("#/meetings/ready-meeting");
   const input = await screen.findByRole("textbox", {
@@ -147,9 +158,8 @@ test("meeting chat explains a busy service and submits once it is available", as
   expect(api.chat).not.toHaveBeenCalled();
 
   vi.mocked(api.health).mockResolvedValue({
-    ready: true,
+    ...healthy,
     busy: false,
-    chat_enabled: true,
   } as Health);
   vi.mocked(api.chat).mockResolvedValue({
     answer: "Maya will prepare the checklist.",
@@ -181,4 +191,236 @@ test("meeting chat explains a busy service and submits once it is available", as
     "ready-meeting",
     "Who is preparing the checklist?",
   );
+});
+
+test("processing status stays green while busy and supports keyboard dismissal", async () => {
+  vi.mocked(api.health).mockResolvedValue({ ...healthy, busy: true });
+  const user = start("#/workspace");
+  const status = await screen.findByRole("button", {
+    name: "Local processing: Ready",
+  });
+  expect(status).toHaveClass("is-ready");
+  expect(
+    screen.queryByRole("button", { name: "System status" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await user.click(status);
+  const popup = screen.getByRole("dialog", { name: "Everything is ready" });
+  expect(popup).toHaveFocus();
+  expect(
+    within(popup).getByText(/Megan is working on another request/),
+  ).toBeVisible();
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(status).toHaveFocus();
+  await user.keyboard("{Enter}");
+  expect(screen.getByRole("dialog")).toBeVisible();
+  await user.click(screen.getByRole("heading", { name: "Meetings" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("missing services show a red indicator with only relevant plain-language problems", async () => {
+  vi.mocked(api.health).mockResolvedValue({
+    ...healthy,
+    ready: false,
+    asr: false,
+    ollama: false,
+  });
+  const user = start("#/workspace");
+  const status = await screen.findByRole("button", {
+    name: "Local processing: Needs attention",
+  });
+  expect(status).toHaveClass("is-error");
+  await user.click(status);
+  const popup = screen.getByRole("dialog");
+  expect(
+    within(popup).getByText(/Speech recognition isn’t ready/),
+  ).toBeVisible();
+  expect(
+    within(popup).getByText(/The report generator isn’t ready/),
+  ).toBeVisible();
+  expect(within(popup).queryByText(/Meeting storage/)).not.toBeInTheDocument();
+  expect(within(popup).queryByText(/Speaker labels/)).not.toBeInTheDocument();
+});
+
+test("a lost connection clears a previously green status and check again recovers it", async () => {
+  const user = start("#/workspace");
+  await user.click(
+    await screen.findByRole("button", { name: "Local processing: Ready" }),
+  );
+  vi.mocked(api.health).mockRejectedValueOnce(new Error("Failed to fetch"));
+  await user.click(screen.getByRole("button", { name: "Check again" }));
+  expect(
+    await screen.findByRole("button", {
+      name: "Local processing: Needs attention",
+    }),
+  ).toHaveClass("is-error");
+  expect(
+    screen.getByText(/Megan isn’t running or can’t be reached/),
+  ).toBeVisible();
+  expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Check again" }));
+  expect(
+    await screen.findByRole("button", { name: "Local processing: Ready" }),
+  ).toHaveClass("is-ready");
+  expect(
+    screen.getByRole("dialog", { name: "Everything is ready" }),
+  ).toBeVisible();
+});
+
+test("status remains neutral until the first check and explains unavailable optional speaker labels", async () => {
+  let resolve: (health: Health) => void;
+  vi.mocked(api.health).mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  const user = start("#/workspace");
+  const status = await screen.findByRole("button", {
+    name: "Local processing: Checking",
+  });
+  expect(status).toHaveClass("is-checking");
+  await user.click(status);
+  expect(screen.getByRole("button", { name: "Checking…" })).toBeDisabled();
+  await act(async () => {
+    resolve!({ ...healthy, diarization: "sortformer_nemo" });
+  });
+  expect(
+    screen.getByRole("button", { name: "Local processing: Needs attention" }),
+  ).toHaveClass("is-error");
+  expect(screen.getByText(/You can still create reports/)).toBeVisible();
+});
+
+test("the landing recorder opens immediately while health and history are still pending", async () => {
+  vi.mocked(api.health).mockReturnValueOnce(new Promise(() => {}));
+  vi.mocked(api.jobs).mockReturnValueOnce(new Promise(() => {}));
+  const user = start();
+  await user.click(
+    within(screen.getByRole("main")).getAllByRole("link", {
+      name: "Record a meeting",
+    })[0],
+  );
+  expect(screen.getByRole("heading", { name: "New meeting" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Start recording" })).toBeEnabled();
+  expect(screen.queryByText(/Opening your workspace/)).not.toBeInTheDocument();
+  expect(screen.queryByText("No meetings yet.")).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("status", { name: "Loading recent meetings" }),
+  ).toHaveAttribute("aria-busy", "true");
+});
+
+test("meeting rows use placeholders until real data arrives", async () => {
+  let resolve: (jobs: Job[]) => void;
+  vi.mocked(api.jobs).mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  start("#/workspace");
+  expect(
+    screen.getByRole("status", { name: "Loading meetings" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("No meetings yet.")).not.toBeInTheDocument();
+  await act(async () => {
+    resolve!([ready]);
+  });
+  expect(
+    screen.queryByRole("status", { name: "Loading meetings" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: /Website launch sync/ }),
+  ).toBeVisible();
+});
+
+test("a report skeleton gives way to the loaded report", async () => {
+  let resolve: (job: Job) => void;
+  vi.mocked(api.job).mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  start("#/meetings/ready-meeting");
+  expect(
+    screen.getByRole("status", { name: "Loading meeting" }),
+  ).toHaveAttribute("aria-busy", "true");
+  await act(async () => {
+    resolve!(ready);
+  });
+  expect(
+    screen.queryByRole("status", { name: "Loading meeting" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "Website launch sync" }),
+  ).toBeVisible();
+});
+
+test("the FAQ opens one answer at a time and lets the open answer close", async () => {
+  const user = start();
+  const first = screen.getByText("How do I bring a meeting into Megan?");
+  const second = screen.getByText("Does my audio leave this device?");
+  await user.click(first);
+  expect(first.closest("details")).toHaveAttribute("open");
+  await user.click(second);
+  expect(first.closest("details")).not.toHaveAttribute("open");
+  expect(second.closest("details")).toHaveAttribute("open");
+  expect(document.querySelectorAll(".faq-list details[open]")).toHaveLength(1);
+  await user.click(second);
+  expect(document.querySelectorAll(".faq-list details[open]")).toHaveLength(0);
+});
+
+test("sidebar collapse preserves the selected recording and works with icon navigation", async () => {
+  const user = start("#/new/upload");
+  await user.upload(
+    screen.getByLabelText("Meeting recording"),
+    new File(["audio"], "team.wav", { type: "audio/wav" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+  expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+  expect(localStorage.getItem("megan.sidebar.collapsed")).toBe("1");
+  expect(screen.getByText("team.wav")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+  expect(document.querySelector(".app-shell")).not.toHaveClass(
+    "sidebar-collapsed",
+  );
+  expect(screen.getByText("team.wav")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "How it works" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+  const sidebar = screen.getByRole("complementary", {
+    name: "Workspace navigation",
+  });
+  await user.click(
+    within(sidebar).getByRole("button", { name: "Action items" }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Action items" }),
+  ).toBeVisible();
+  expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+});
+
+test("the collapsed sidebar preference survives reopening the workspace", async () => {
+  localStorage.setItem("megan.sidebar.collapsed", "1");
+  const user = start("#/workspace");
+  expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+  await user.click(screen.getByRole("link", { name: "Megan home" }));
+  await user.click(screen.getByRole("link", { name: "Open workspace" }));
+  expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+});
+
+test("the mobile drawer still closes with Escape when the desktop rail is collapsed", async () => {
+  localStorage.setItem("megan.sidebar.collapsed", "1");
+  const user = start("#/workspace");
+  const trigger = screen.getByRole("button", { name: "Open navigation" });
+  await user.click(trigger);
+  expect(
+    screen.getByRole("dialog", { name: "Workspace navigation" }),
+  ).toBeVisible();
+  expect(document.querySelector(".main-shell")).toHaveAttribute("inert");
+  await user.keyboard("{Escape}");
+  expect(
+    screen.queryByRole("dialog", { name: "Workspace navigation" }),
+  ).not.toBeInTheDocument();
+  expect(document.querySelector(".main-shell")).not.toHaveAttribute("inert");
+  expect(trigger).toHaveFocus();
 });

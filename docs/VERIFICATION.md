@@ -87,6 +87,11 @@ Report accuracy remains incomplete: the longer excerpt converted completed work 
 
 Do not advertise the aspirational 45-second/two-minute target as measured. Human validation and RTX acceptance remain necessary before presenting the system as demo-ready.
 
+## Subsequent Russian quality pass — 2026-09-11
+
+The detailed staged record is [QUALITY_LOG.md](QUALITY_LOG.md). Final validation: **199 normal backend tests**, **14 actual-model cases**, deterministic replay of saved drafts against the final merged grounding checks, and successful CI for source commit `ea95f5a`. The final real Russian two-minute video completed the isolated three-model API pipeline in **132.11 seconds**, including **10.47 seconds** of transcription. JSON/CSV/ICS exports and original-audio range playback passed. Its general advice produced no personal tasks or confirmed decisions after the source checks.
+
+A separate controlled Russian recording preserved both named assignments and a corrected date, but omitted another deadline; that omission now receives a review flag. Some real-audio report questions and quotations remain unreliable, and an unseen English passage exposed missed conditional work. These results verify operation and specific improvements, not universal accuracy, a physical microphone, crowd noise, or Fatikh's RTX laptop.
 ## First RTX 4060 run (2026-09-11)
 
 The CUDA profile was brought up on Fatikh's laptop for the first time. This closes the
@@ -104,7 +109,9 @@ The CUDA profile was brought up on Fatikh's laptop for the first time. This clos
 
 **Real Russian audio, first measurement on this machine.** A 120.0 s excerpt of a Kazakhstani
 banking interview (`voice.bank-sektor-ekonomika.mp3`, 05:00–07:00) completed in **39.8 s** with
-`DIARIZATION_BACKEND=none`.
+`DIARIZATION_BACKEND=none`. This is not comparable with the 132.11 s Russian run in the quality
+pass above: that one ran the three-model pipeline including Sortformer on the Mac, this one ran
+two models without speaker separation. Sortformer on CUDA is still unmeasured.
 
 | Stage | Time |
 |---|---:|

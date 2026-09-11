@@ -110,14 +110,13 @@ class DraftAction(Model):
 
 
 class DraftReport(Model):
-    # Resolve actionable state before writing narrative sections in constrained generation.
-    action_items: list[DraftAction]
-    decisions: list[DraftDecision]
     title: str = Field(min_length=1, max_length=200)
     summary: list[DraftClaim] = Field(max_length=5)
     topics: list[DraftTopic]
+    decisions: list[DraftDecision]
     open_questions: list[DraftClaim]
     risks: list[DraftClaim]
+    action_items: list[DraftAction]
 
 
 class Claim(Model):

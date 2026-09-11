@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import { canLeaveCapture } from "./navigation";
+import Workspace from "./Workspace";
 
-const Workspace = lazy(() => import("./Workspace"));
 const currentRoute = () => window.location.hash.slice(1);
 
 export default function App() {
@@ -26,17 +26,5 @@ export default function App() {
       ? "Your workspace · Megan"
       : "Megan — Meeting notes and action items";
   }, [route]);
-  return route.startsWith("/") ? (
-    <Suspense
-      fallback={
-        <main className="app-loading" role="status">
-          Opening your workspace…
-        </main>
-      }
-    >
-      <Workspace route={route} />
-    </Suspense>
-  ) : (
-    <LandingPage />
-  );
+  return route.startsWith("/") ? <Workspace route={route} /> : <LandingPage />;
 }

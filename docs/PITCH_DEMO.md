@@ -8,7 +8,7 @@ The proposed demo records the team's presentation and reveals a report of what w
 
 | Capability | Observed state | Consequence for the pitch |
 |---|---|---|
-| Audio capture | `UploadView` accepts existing MP3/WAV/M4A files; no microphone capture | Use a separate local recorder or implement an in-app recorder |
+| Audio capture | The current frontend includes a microphone recorder that creates WAV files, alongside MP3/WAV/M4A upload | Rehearse the actual microphone, browser, and stop-to-submit handoff; this backend quality pass did not verify live capture |
 | Processing | The API finishes receiving the file, then runs Whisper, optional Sortformer, and Qwen sequentially | Processing starts after the recorded passage ends and is uploaded |
 | Progress | Stage/status updates already exist | Show real processing status while explaining the product |
 | Report | Summary, topics, decisions, questions, risks, tasks, transcript, sources, and exports | The reveal can demonstrate the required report structure |
@@ -61,8 +61,8 @@ The most convincing reveal is a correct summary, one accurate task, and playback
 
 ## Changes and tests before relying on this demo
 
-1. **Capture and handoff.** The smallest route uses a local recorder that exports a supported file. An integrated Start/Stop recorder would remove manual file selection. Browser media recording is supported by the [MediaStream Recording API](https://www.w3.org/TR/mediastream-recording/), but the chosen browser's actual output format must be tested against our decoder. The app currently rejects WebM/OGG uploads; simply renaming their extension is not a conversion. Test microphone permission, selected input, recording retention, and stop-to-submit time.
-2. **Input size.** The app's 30-minute duration setting does not guarantee that a transcript fits the report model. During this analysis, an isolated check passed invented 200- and 400-word EN/RU/KK inputs through the current size guard. At 650 words, the repeated English fixture passed; the Russian and Kazakh fixtures were rejected before any model call. These cases reused the repository's invented extraction text in 15-word segments. They establish content-dependent guard behavior only, not a universal word limit or model accuracy. Check the actual pitch transcript; adjust budgeting or add tested chunking only if necessary. Increasing the model context also needs a memory check on the target machine.
+1. **Capture and handoff.** The current [recorder](../frontend/src/components/Recorder.tsx) captures browser microphone audio and creates WAV files. Its presence is separate from this backend evaluation. Rehearse microphone permission, selected input, recording retention, and stop-to-submit time in the presentation browser. Keep a local recorder exporting supported audio as a fallback.
+2. **Input size.** The 30-minute duration setting does not guarantee that a transcript fits the report model. The quality pass replaced the earlier coarse estimate with a local Qwen tokenizer plus framing/output reserves; the old 650-word rejection examples no longer describe the current guard. Missing or unsupported tokenizers use a strict byte fallback. Check the actual Russian pitch transcript and target-machine memory. Long-meeting chunking is not implemented.
 3. **Real audio.** Rehearse with both presenters, the intended language, and the actual microphone arrangement. Compare a quiet run with background chatter and interruptions. Aim the microphone at the presenters; a distant laptop microphone needs its own trial. Review names, deadlines, negations, speaker labels, and source playback against what was said.
 4. **Timing and locality.** Run at least three complete rehearsals on the chosen demo laptop, including one fresh start and one repeated job. Keep external networking disabled, as required by the case. Record capture/export/upload time separately from processing and inspect memory use. Proposed acceptance for this schedule: every rehearsal yields the report by 3:00, leaving 30 seconds of buffer before the 3:30 reveal. This is a team target, not an organizer rule or reliability guarantee.
 5. **Fallback.** Keep a clearly labeled rehearsal recording/report available for equipment failure. Show the current run's actual status and do not present the backup as a result of today's live capture.
@@ -75,10 +75,16 @@ That would require microphone capture, a recording session with incremental ASR,
 
 Repeatedly calling Qwen for every fragment would also compete with the audio stages and add generation overhead. Incremental transcript collection with a final report pass is a possible design, but still leaves finalization latency. A new transcript-cleanup model does not address these capture and scheduling gaps.
 
-No recording or streaming feature was implemented during this analysis. The proposed opening-capture sequence should become the main demo only after the real rehearsals meet the timing and accuracy criteria above.
+The current recorder arrived in separate frontend work; incremental ASR/report streaming remains unimplemented. The opening-capture sequence should become the main demo only after real rehearsals meet the timing and accuracy criteria above.
 
 ## Subsequent real-recording test
 
 The [YouTube meeting evaluation](YOUTUBE_TEST.md) now provides real English remote-call evidence: a two-minute excerpt completed in 67.63 seconds after a diarization rounding fix, its version with artificial pink noise in 82.89 seconds, and a five-minute excerpt in 143.56 seconds. These are processing times after upload, not recording-plus-processing times.
 
-The tests also exposed unresolved report errors: completed work became new tasks, some assignments and conditions lacked support, and added noise damaged a name and a follow-up detail. This supports trying the proposed timing structure but does not clear the live reveal for accuracy. Actual presenters, microphone, venue, language, and Fatikh's laptop remain untested.
+The tests also exposed unresolved report errors: completed work became new tasks, some assignments and conditions lacked support, and added noise damaged a name and a follow-up detail. This supports trying the proposed timing structure but does not clear the live reveal for accuracy. Actual presenters, microphone, venue, and Fatikh's laptop remain untested. Subsequent Russian audio and extraction checks are recorded in [QUALITY_LOG.md](QUALITY_LOG.md); those checks do not replace a Russian pitch rehearsal.
+
+## Russian rehearsal implications after the quality pass
+
+An 80-second controlled Russian recording took **135.60 seconds after upload** with the revised 4B report prompt: at least **3:35.60** for recording plus processing, before handoff time. It preserved two tasks and a corrected date, but omitted another deadline and promoted a hypothetical example to an open question. The omission now receives a review warning. A two-minute human Russian explainer also completed, while exposing advice-versus-decision errors that prompted a conservative decision-source check.
+
+These results do not meet the proposed 3:00 readiness target automatically. Start rehearsal with a **45–60 second recorded opening**, genuine clearly stated commitments, and a supplied recording date; measure the complete handoff and report reveal on Fatikh's machine. That shorter opening is a planning adjustment, not a measured performance guarantee. Keep 4B as the default; the tested 9B five-minute extraction alone needed 283.89 seconds and still made interpretation errors. Report review and source playback remain part of the demonstration.

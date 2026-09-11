@@ -2,6 +2,11 @@
 
 This tracks the user's requested quality pass, starting from the real meeting failures in [YOUTUBE_TEST.md](YOUTUBE_TEST.md). Frontend work is excluded from commits in this pass.
 
+**Local quality pass completed, 2026-09-11.** The backend changes are pushed to `main`; the selected models remain turbo + optional Sortformer + Qwen 4B. Final evidence: 199 normal backend tests, 14 real-model cases, replay against the merged validator, and an actual Russian API run with exports. The final two-minute Russian input took 10.47 s for transcription and 132.11 s through the complete pipeline.
+
+**Report review is still required.** Real recordings exposed omitted deadlines/conditional offers, some unsupported open questions, and remaining quotation mismatches. The changes improve outcome filtering, evidence alignment, owner/deadline handling, and visible review warnings; they do not establish unattended accuracy or acceptance on Fatikh's laptop/in a noisy venue.
+
+
 ## Stage 0 — preserve the measured baseline (complete)
 
 - Pushed `46a537a` to `main`: diarization rounding fix, regression tests, and pitch/YouTube/verification notes. No frontend files were included.
@@ -9,7 +14,7 @@ This tracks the user's requested quality pass, starting from the real meeting fa
 - Baseline real audio: natural two-minute excerpt 67.63 seconds after the rounding fix; five-minute excerpt 143.56 seconds; short excerpt with artificial pink noise 82.89 seconds.
 - Problems: completed work becomes new actions; names mentioned in a passage become unsupported owners; conditions and tentative decisions are overstated; quotations span neighboring ASR segments; noise changes names and a follow-up detail. The baseline reports and source files remain in ignored local evaluation artifacts.
 
-## Stage 1 — grounded outcomes and evidence (in progress)
+## Stage 1 — grounded outcomes and evidence (implemented; measured limitations below)
 
 Targets:
 
@@ -21,19 +26,19 @@ Targets:
 
 Tests will start with failures derived from observed behavior plus independently invented positive/negative EN/RU/KK cases. Recorded test results belong below each change; a plan is not a passing result.
 
-## Stage 2 — actual-model comparison (pending)
+## Stage 2 — actual-model comparison (complete; 4B retained)
 
 Run the revised extractor against retained transcripts and compare concrete tasks, owners, dates, conditions, completed-work exclusions, decision state, and source support. Preserve draft and final outputs and compare omissions as well as inventions. Check the existing real-model regressions for regressions.
 
-## Stage 3 — speech/noise improvement (pending)
+## Stage 3 — speech/noise improvement (complete; turbo retained)
 
 Evaluate the audio stage on the unchanged natural/noisy excerpts and additional input. Test any decoding, preprocessing, or model change before selecting it. Preserve the original recording and transcript provenance; text cleanup cannot reconstruct inaudible names or dates reliably.
 
-## Stage 4 — held-out and multilingual checks (pending)
+## Stage 4 — held-out and multilingual checks (complete locally; limitations recorded)
 
 Use different, preselected passages/cases after development; do not tune only to the first YouTube excerpt. Measure meaning-critical errors separately from automatic-caption disagreement. Test Russian, Kazakh, mixed speech, no-task inputs, explicit assignments, corrections, and conditions. State the distinction between text tests, synthetic speech, and actual human recordings.
 
-## Stage 5 — final verification and handoff (pending)
+## Stage 5 — final verification and handoff (complete locally)
 
 Run the appropriate full backend checks and actual audio-to-report flow with the selected configuration. Record timing, resource/locality limitations, exports, and remaining material errors. Keep frontend edits out of commits. Target-laptop or venue evidence can only be claimed if actually obtained; unresolved issues stay visible.
 
@@ -120,3 +125,117 @@ Qwen3.5:9b setup completed with digest `6488c96fa5faab64bb65cbd30d4289e20e6130ef
 All **148 normal backend tests passed** with the dedicated PostgreSQL test database after the current implementation changes. Thirteen real-model tests were deselected in that command and are evaluated separately.
 
 Production jobs now retain `extraction.draft.json` and `extraction.attempts.json` locally alongside their other artifacts, including failed generation responses. This makes filtered candidates and repair attempts inspectable instead of silently losing the evidence needed to investigate an extraction failure. These are local diagnostic artifacts, not additional public report sections.
+
+### Integrated concurrent backend changes
+
+`main` received separate work on weekday/date parsing, speaker alignment, upload limits, early capacity checks, and weak claim evidence. Its merge temporarily conflicted with this quality pass. The resolved implementation keeps early capacity checking backed by the local tokenizer, weak-evidence warnings, and exact fragments across up to four consecutive segments. Each fragment keeps its original timestamps and voice; quotations are not accepted merely because their words occur in a later, unrelated segment. Focused post-merge checks: **83 passed**.
+
+### 9B difficult-case results
+
+The first 9B subset finished with **4 passes and 1 failure in 454.25 seconds**: mixed conditional assignment, completed-only updates, Kazakh conditional assignment, and anonymous speaker assignments passed. The remaining English conditional task was retained with the right owner/date but lost its condition because its task quotation began immediately after the conditional clause.
+
+A bounded correction now recovers a literal `if`/`если`/`егер`-style prefix immediately before a unique task quote in the final transcript segment. It retains the original draft, adds the exact condition source, and marks `condition_from_task_context` for review. It avoids unrelated actions, ambiguous quote occurrences, later transcript turns, and common explicit correction cues. This is a lexical safeguard, **not a complete semantic cancellation detector**; it does not prove arbitrary conditions were interpreted correctly. EN/RU/KK positives and correction/unrelated-action negatives were tested first failing, then passing. The saved 9B failure now retains “If the checksum matches” and its source. Grounding/outcome suite after this change: **45 passed**.
+
+### Actual human recordings with the first 9B revision
+
+- Russian explainer: extraction completed in **87.07 s**, with no fabricated action items or decisions. The three summary points cover employee preparation, choosing a moderator/secretary, and reviewing previous tasks. Eight of nine claims had text-matching citations after adjacent-fragment alignment; one quotation still mismatched, and all nine carried review reasons. This is useful Russian output, not fully accepted citation accuracy.
+- Previously unused English passage (20:00–22:00): **128.94 s**. Its summary explicitly described a commitment to adding charts/context, but `action_items` was empty. The ASR renders the word as “shots”; automatic captions render “charts.” This passage fails task recall and also shows why matching transcript text is not an audio accuracy measure.
+- After that failure, the in-progress five-minute 9B extraction was stopped and its cancellation recorded; no completed timing/result is claimed. The subsequent noisy extraction in that batch was not run.
+
+The next revision restores overview-before-actions generation, keeps evidence before individual conclusions, and explicitly requires outstanding commitments summarized elsewhere to also appear in the task list. The action-first ordering was an experiment, and the held-out failure is evidence against retaining it. This changes the previously unused passage into a regression case; it is no longer untouched hold-out evidence for later revisions.
+
+### Overview-first results and bounded deadline correction
+
+The 4B overview-first subset produced **2 passes and 2 failures in 270.75 s**. Mixed-language Mira was now retained, but the model translated the literal English deadline into Russian inside its citation, so grounding correctly left the date unsupported. The English Nora task was still omitted. Kazakh conditional extraction and first-person assignments passed.
+
+A closed relative-date vocabulary now restores an equivalent original word from one exact task quote when a generated deadline citation merely translated that same word. It does not repair arbitrary invalid quotations/references, multiple relative dates, mismatched offsets, or directly negated dates. Original drafts stay unchanged and the correction adds `translated_deadline_from_task_quote` for review. Three positive tests first failed while five rejection cases passed; all eight passed after implementation. The retained Mira draft now resolves to **2026-09-12** with its original `tomorrow` source. This is a deterministic re-grounding result, not a fresh model-generation pass.
+
+The 9B overview-first regression at 20:00–22:00 completed extraction in **72.83 s** and retained the previously missed commitment to add context/charts to the issue. Its task citation matches the ASR's word “shots”; interpreted prose says “charts,” so audio-level wording still needs review. No real name or deadline was invented for that action.
+
+Normal backend checks after these changes: **175 passed, 13 model tests deselected** against the dedicated PostgreSQL test database. Ruff lint and formatting passed. Concurrent frontend changes are excluded from this pass.
+
+A separate Russian positive audio fixture was prepared before inference using macOS Milena speech synthesis. It contains two explicit assignments, a corrected date, a conditional task, completed work, a decision, and an unresolved microphone choice. Its known source and expected outcomes are retained under `russian-controlled/`. It checks the audio pipeline on controlled synthetic speech; it cannot establish real-presenter or venue accuracy.
+
+
+### Portable recording check
+
+The committed helper retains the unedited job, JSON/CSV/ICS exports, input hash, model provenance from health/job data, processing stages, and audio-range status in a **new** directory:
+
+```sh
+.venv/bin/python scripts/evaluate_recording.py path/to/rehearsal.wav \
+  .local/evaluation/fatikh-rehearsal-01 --language ru --meeting-date 2026-09-11
+```
+
+Use the actual recording date; omit it when unknown. Start the local API first (default helper port 8765; override with `--api`). Run one recording or direct model test at a time. Export success is an operational check; inspect whether calendar events, task owners, dates, and conditions are actually correct. This helper does not compute a human-reference accuracy score.
+
+### 9B selection decision
+
+The overview-first five-minute recording needed **283.89 s for extraction alone**. Completed implementation/chart updates no longer became outstanding actions, but the model mislabeled those updates as confirmed decisions, overstated agreement on the meeting time, and attached the rescheduling timing to the confirmation task. This is not acceptable evidence for promoting 9B to the default. A larger model did not consistently fix semantic errors and was substantially slower in this run.
+
+**Selected shipped configuration remains Whisper large-v3-turbo, optional Sortformer, and Qwen3.5:4b with non-reasoning generation.** The tokenizer, outcome/evidence checks, and latest extraction ordering are retained. 9B stays a locally installed experiment; it is not an additional concurrently running stage or a requirement for Fatikh. Its CUDA memory/latency has not been tested. The final API checks below use 4B, not 9B.
+
+### Russian controlled audio result and review correction
+
+The **80.00 s synthetic Russian recording** completed the three-model API flow. Whisper preserved both names, the spoken correction as `18 сентября 2026 года`, `завтра`, and the database-check condition. The 4B report retained two tasks, assigned Dana's corrected date, preserved Aidar's condition, excluded completed work and the hypothetical equipment purchase, and retained the microphone question. **It omitted Aidar's tomorrow deadline despite that word being present in its exact task quote.** This prevents a fully correct report claim.
+
+The validator now flags `possible_omitted_deadline` when a task has no deadline but its own valid quote contains a known relative-date word. It does not guess whether the date belongs to the task, a condition, or a later correction. Three EN/RU/KK warning tests first failed; they and the unrelated-turn rejection passed after implementation. Focused grounding tests: **57 passed**. Re-grounding the saved draft gives Aidar a review warning while leaving the original API report and model draft preserved. This warning was added after the initial API process started; those first saved exports do not include it.
+
+### Distinguishing an explainer from an actual meeting
+
+The first full 4B API run on the human Russian explainer produced no personal tasks, but mislabeled general advice about moderation and agenda order as meeting decisions. Its summary also invented a participant discussion. This is a semantic failure even when citations match.
+
+The final prompt revision explicitly allows a recording to be a presentation, interview, or lesson; descriptions of existing practice and general advice are reported facts unless speakers explicitly adopt them in this conversation. It also forbids inventing participants who discussed or agreed. An independent Russian lecture fixture was added, alongside the existing positive assignment/decision cases. The original human-audio output is retained under `final-api/russian-human`; the final revision is evaluated separately under `final-v4/`.
+
+The 25:00–26:30 English passage was first processed in the preceding batch, but its report was not inspected or used to make this revision. The revision is driven by the Russian explainer only. Both English runs remain retained; the final report is assessed after this prompt is frozen. This is another passage from the same source recording, not evidence from a different population.
+
+### Confirmed-decision source gate
+
+The genre prompt alone still mislabeled three recommendations as decisions. The final grounding change therefore requires an exact cited source with explicit adoption/agreement wording for a `confirmed` decision. It checks common EN/RU/KK forms and surrounding text within the original cited segment, including negation hidden immediately before a shortened quote. Rejected candidates remain in `extraction.draft.json`; production jobs show a decision-review warning when this gate filters candidates.
+
+This is deliberately conservative: implicit agreements, other wording/languages, cross-turn agreement cues, or ambiguous repeated quotations may be omitted. A lexical adoption cue also cannot prove that a past decision was made in this meeting. The report remains reviewable output, not a semantic truth guarantee. Summary and topic content are retained independently.
+
+TDD: seven advice/completion/negated/hypothetical cases initially failed while four explicit EN/RU/KK decisions passed. Two additional cases then exposed curly-apostrophe negation and a quote hiding `not`; both were fixed. **70 grounding/outcome tests passed.** Re-grounding the retained Russian explainer removes its three spurious decisions. Re-grounding the controlled Russian meeting keeps the explicitly adopted Russian demo language and both tasks. The original generated reports remain preserved; re-grounded files are separate artifacts.
+
+### Concurrent integration checkpoint
+
+Pushed implementation checkpoint `fa2dee2` and merge `3ec7000` to `main`, without frontend edits. Fatikh's concurrent `b376ee6`/`a211257` changes add punctuation-tolerant quote matching, a 0.2 s diarization-fragment filter, retained retrieval context, and respect for the selected context size. His measurement claims remain in `REVIEW.md`; they are not new measurements from this pass.
+
+The merged normal backend suite passed **197 tests** with 14 real-model cases deselected. Integration then exposed two decision-gate edge cases: punctuation-only changes hid a real agreement, while the substring `agreed` inside `disagreed` looked like adoption. Both failed first and now pass with whole-word alignment back to the original segment. The focused combined suite passed **121 tests**. The final API process is restarted after these source changes; the text-model suite's saved drafts will also be re-grounded with the final merged validator.
+
+### Frozen-prompt audio batch and remaining errors
+
+These are individual API runs on the M5 / 16 GB, before the final decision-source gate and concurrent punctuation merge were loaded by the API. Saved drafts were subsequently re-grounded with the final merged validator into separate `report-final-grounding.json` files. Original job responses and exports are preserved.
+
+| Input | Upload-to-done | Whisper | Sortformer | Qwen 4B extraction |
+|---|---:|---:|---:|---:|
+| Human Russian explainer, 120 s | 113.15 s | 8.11 s | 4.18 s | 100.48 s |
+| Controlled synthetic Russian, 80 s | 135.60 s | 7.74 s | 3.67 s | 123.28 s |
+| Unused English passage, 90 s | 93.86 s | 7.73 s | 3.76 s | 82.11 s |
+
+- Russian explainer: final grounding retains its summary/advice and removes the three unsupported decision candidates. No personal tasks were generated. Two of thirteen remaining claims still have mismatched quotations; some generated open questions describe the lesson's general advice rather than unresolved team business.
+- Controlled Russian: both named tasks and the explicit decision to use Russian remain; Dana's corrected date is 2026-09-18. Aidar's omitted tomorrow deadline is flagged for review. The report also lists a hypothetical equipment example as an open question. The calendar export contains Dana's dated task, not Aidar's undated one. Correct owners/dates in one task do not establish complete report accuracy.
+- English 25:00–26:30: summary covers Helm 2/3 and a shared CI image. No tasks or confirmed decisions were generated. It omits the conditional offer “then I will take a look at it” when additional discussions are brought up. This is a remaining recall limitation. Fourteen claims match transcript wording after grounding; that does not validate interpretation or audio accuracy.
+
+All three original API jobs returned JSON/CSV/ICS exports with HTTP 200 and audio ranges with HTTP 206. The English and Russian-explainer calendars are empty. Timings exclude recording time and source acquisition. Labels are model output, not independently verified speaker identities. These runs do not test a crowd, room echo, a physical microphone, real Kazakh audio, or Fatikh's RTX laptop.
+
+### Final automated results
+
+- **199 normal backend tests passed**, 14 opt-in model tests deselected, on the dedicated PostgreSQL test database. Ruff lint/format and `git diff --check` passed; model files and the local tokenizer passed `setup_models.py --profile mac --check`.
+- **14/14 real-model tests passed in 722.25 s** using the frozen final 4B prompt: twelve EN/RU/KK/mixed extraction fixtures, grounded chat ownership, and three speaker/name assignments. This includes the difficult conditional/background case and the Russian lecture case. Artifacts: `model-cases-4b-final/`.
+- The model run overlapped source integration, but each generation used the same frozen prompt and model configuration. All **12 saved extraction drafts plus the speaker draft** were separately re-grounded with the final merged validator and passed the same applicable assertions. This replay makes no additional inference claim; its receipt and outputs are in `model-cases-4b-final-merged/`. The chat result comes from the actual model test, not a replay.
+- Final source commit `ea95f5a` CI passed: [run 34591072046](https://github.com/aidynfatikh/megan/actions/runs/34591072046). These commits include backend/configuration/tests/docs only. The separate frontend commit `5a470b6` was made and pushed by the concurrent frontend session.
+
+### Fatikh handoff
+
+Pull the merged `main`, update the project virtual environment from `requirements-cuda.lock`, and run the explicit model setup/check described in the README. The new Qwen tokenizer is a small local counting artifact, not a fourth inference model. Keep the existing working NeMo environment separate as documented in `DIARIZATION.md`. Whisper, optional Sortformer, and Qwen 4B run sequentially; 9B and full Whisper large-v3 are optional local experiments, not new requirements.
+
+Use `scripts/evaluate_recording.py` with the actual Russian rehearsal recording/date. Check named owners, date corrections, conditions, completed-work exclusions, decisions, hypothetical questions, original-audio playback, and actual calendar entries. Measure three rehearsals on the presentation laptop with the intended microphone, including a fresh start. The remaining machine/venue acceptance work requires that hardware and recording; it cannot be established from these Mac tests.
+
+
+### Final API verification with all merged source checks active
+
+After restarting the isolated API on the final code, job `892b425f-d30d-4435-9a4d-e6e238f81c35` processed the same two-minute human Russian explainer. **132.11 s upload-to-done**: Whisper **10.47 s**, Sortformer **5.19 s**, and Qwen **115.35 s**. One anonymous voice labeled all 25 transcript segments; no speaker-accuracy score is inferred.
+
+The report contains **zero personal tasks and zero confirmed decisions**. Its three unsupported decision candidates are excluded, with the expected visible decision-review warning. The generated summary/advice remains available. JSON (26,867 bytes), CSV (87 bytes), and ICS (114 bytes) exports returned 200; the original-audio range returned 206 with 64 bytes. The empty calendar is correct for this no-assignment input. Provenance confirms turbo, Sortformer 0.1.0, and Qwen3.5:4b with the recorded digest. Artifacts: `final-gate-api/russian-human/`.
+
+All inference continued on the loopback-only API/Ollama processes; source acquisition happened separately. The API is left available for rehearsal. Local verification and handoff are complete; live microphone, noisy venue, and RTX acceptance remain explicitly unverified.

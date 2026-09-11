@@ -2,6 +2,8 @@
 
 **Result:** the local pipeline completed real conversational audio and exported reports. It also exposed a fixable diarization boundary bug and unresolved extraction errors. This is evidence that the system runs on real speech, not acceptance of unattended report accuracy or a noisy live pitch.
 
+**Subsequent quality pass:** [QUALITY_LOG.md](QUALITY_LOG.md) records Russian human and controlled synthetic audio, comparisons with a larger Whisper model and Qwen 9B, outcome/evidence fixes, and the final validation results. The English measurements below are the preserved baseline; they are not silently replaced by later runs.
+
 ## Source and method
 
 Source: GitLab Unfiltered, [Engineering Productivity Weekly — 2020-03-24](https://www.youtube.com/watch?v=U5syPVWnnYs). The [GitLab team issue](https://gitlab.com/gitlab-org/quality/quality-engineering/team-tasks/-/issues/448) links the recording as its weekly team meeting. The excerpt was selected before inference because it includes meeting-time negotiation, follow-up commitments, and an implementation update.

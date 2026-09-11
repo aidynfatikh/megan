@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { Health, Job } from "../types";
 import { formatDate, timestamp } from "../api";
-import { navigate } from "../navigation";
+import { MeetingListSkeleton } from "./Skeletons";
 
 const statusLabels: Record<string, string> = {
   done: "Ready to review",
@@ -87,7 +87,9 @@ export function Dashboard({
       <section className="meeting-library" aria-labelledby="library-title">
         <h2 id="library-title" className="sr-only">
           {actionsOnly ? "Your action items" : "Your meetings"}
-          <span>{actionsOnly ? tasks.length : history.length}</span>
+          {!loading && (
+            <span>{actionsOnly ? tasks.length : history.length}</span>
+          )}
         </h2>
         <div className="library-toolbar">
           {!actionsOnly && (
@@ -142,12 +144,9 @@ export function Dashboard({
           )}
         </div>
         {loading ? (
-          <div className="library-loading" role="status">
-            <span />
-            <span />
-            <span />
-            <p>Loading meetings…</p>
-          </div>
+          <MeetingListSkeleton
+            label={actionsOnly ? "Loading action items" : "Loading meetings"}
+          />
         ) : actionsOnly ? (
           filteredTasks.length ? (
             <div className="all-actions">
@@ -226,23 +225,6 @@ export function Dashboard({
           />
         )}
       </section>
-      {!actionsOnly && history.length === 0 && !loading && (
-        <button
-          className="sample-invitation"
-          onClick={() => navigate("/example")}
-        >
-          <span className="sample-icon">
-            <FileText size={22} strokeWidth={1.5} />
-          </span>
-          <span>
-            <strong>View a sample report</strong>
-            <small>No recording needed.</small>
-          </span>
-          <span className="sample-cta">
-            Open sample <ArrowRight size={15} />
-          </span>
-        </button>
-      )}
       {health?.busy && (
         <p className="workspace-busy" role="status">
           <span className="status-dot" /> A local request is processing. You can

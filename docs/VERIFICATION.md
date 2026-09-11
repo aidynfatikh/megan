@@ -51,6 +51,7 @@ The automated suite includes real PostgreSQL integration tests. Model adapters a
 - Real cited chat answered “Alex” to the accessibility-review ownership question with the matching S13 quotation at 37.04s. The initial chat prompt had falsely abstained; the revised prompt explicitly explains task ownership and exact citation format. The added real-model chat regression passed.
 - Browser source playback sought to **7.6 seconds** and started the matching audio passage. Task editing persisted revision 2 with an `edited` marker; JSON export contained that revision, and it survived API restart. JSON/CSV/ICS endpoints were exercised.
 - Browser verification used a standalone browser after the in-app runtime failed with a missing `sandboxPolicy` metadata error. A port collision with an unrelated local app was resolved by moving the Megan preview to **127.0.0.1:8765**.
+- The report was visually checked at desktop and 390px mobile widths. The mobile page stays within the viewport; wide task tables scroll inside their container.
 - The isolation harness was checked separately: loopback TCP succeeded; an external TCP attempt failed with `PermissionError`. This does not isolate an already-running browser; browser network inspection and the complete disconnected RTX rehearsal remain separate checks.
 
 Raw local artifacts are in `.local/evaluation/` and are ignored by Git. Timings are individual development runs with ordinary background applications, not a statistical performance claim. Synthetic English speech is easier than unfamiliar noisy multilingual jury audio.

@@ -19,3 +19,4 @@ frontend/coverage/
 frontend/*.tsbuildinfo
 .DS_Store
 artifacts/
+/fatikh-files/

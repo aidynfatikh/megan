@@ -1,6 +1,6 @@
 # Megan
 
-A local meeting workspace: upload MP3, WAV, or M4A; review a transcript, summary, decisions, topics, open questions, and action items; follow timestamped sources; edit tasks; export JSON, CSV, or task deadlines as ICS.
+A local meeting workspace: record your microphone or upload MP3, WAV, or M4A; review a transcript, summary, decisions, topics, open questions, and action items; follow timestamped sources; edit tasks; export JSON, CSV, or task deadlines as ICS.
 
 **Two models by default:** multilingual Whisper → Qwen through Ollama. Optional Sortformer adds speaker separation: Whisper → Sortformer → Qwen, still one model at a time. PostgreSQL stores jobs and report revisions. Files stay in `data/`; models stay in `models/`. No hosted inference, cloud database, analytics, or CDN assets are required at runtime.
 
@@ -88,6 +88,21 @@ Open **http://127.0.0.1:8000**. Keep PostgreSQL, Ollama, and the API running. `p
 If another app uses port 8000, launch with `bash scripts/run_local.sh --port 8765` and open `http://127.0.0.1:8765`. Add `--api http://127.0.0.1:8765` to CLI processing commands. For Vite development, set `MEGAN_API_URL=http://127.0.0.1:8765` when running `npm run dev`.
 
 For UI development, run `npm run dev` inside `frontend` alongside the API; Vite proxies `/api`. The built app is the offline demo path. The API schema is at `/openapi.json`. Hosted Swagger/ReDoc assets are disabled.
+
+## Landing page and meeting workspace
+
+The home page introduces the product with an interactive example. Open **Your workspace** to search and filter saved meetings, browse action items, and start a recording or upload.
+
+- `/#/workspace` — meetings, search, status filters, and newest/oldest sorting.
+- `/#/new/record` — microphone recording, input level, pause/resume, playback, and WAV download.
+- `/#/new/upload` — MP3/WAV/M4A upload, optional meeting date, and report language.
+- `/#/actions` — action items across completed meetings; open one to review/edit its meeting report.
+- `/#/example` — clearly labeled illustrative report; no audio or model run.
+- `/#/meetings/<id>` — a saved report that can be reopened by URL.
+
+Recording requires a browser with AudioWorklet on localhost or HTTPS. It captures **microphone audio only**; upload your meeting tool’s recording to include remote participants. Recordings remain in browser memory until downloaded or submitted successfully. Keep the tab open; unsaved recordings are not recoverable after a browser crash. The configured duration/size limits stop capture automatically. Uploaded files never inherit an assumed meeting date; microphone recordings use the local capture date, which can be changed before processing.
+
+The interface, fonts, and audio worklet are bundled for local use. See [frontend design and verification](docs/FRONTEND.md) for the Granola adaptation, implementation details, and test evidence.
 
 ## Test a real recording
 

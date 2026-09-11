@@ -21,10 +21,17 @@ export function EditTask({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
   }, []);
   return (
-    <dialog ref={dialog} className="edit-dialog" onCancel={onClose}>
+    <dialog
+      ref={dialog}
+      className="edit-dialog"
+      aria-labelledby="edit-action-title"
+      onCancel={onClose}
+    >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -47,7 +54,7 @@ export function EditTask({
         }}
       >
         <div className="dialog-heading">
-          <h2>Edit action item</h2>
+          <h2 id="edit-action-title">Edit action item</h2>
           <button
             type="button"
             className="icon-button"

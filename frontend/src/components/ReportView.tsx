@@ -90,7 +90,16 @@ export function ReportView({
   onEdit: (item: Action) => void;
 }) {
   const report = job.report;
-  if (!report) return null;
+  if (!report)
+    return (
+      <section className="panel">
+        <p className="empty-note">
+          {job.status === "failed" || job.status === "interrupted"
+            ? "The report is not ready. You can review the saved transcript and retry processing above."
+            : "Your report will appear when processing finishes. You can already explore the transcript."}
+        </p>
+      </section>
+    );
   return (
     <div className="report-stack">
       {report.content_status === "no_usable_speech" && (

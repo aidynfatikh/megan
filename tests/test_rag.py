@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from backend.pipeline.rag import answer_question, retrieve
+from backend.pipeline.rag import SEEDS, answer_question, retrieve
 from backend.schemas import ChatDraft, Evidence, Segment
 
 
@@ -53,7 +53,7 @@ def test_retrieval_keeps_the_best_match_over_earlier_weak_hits():
 
     selected = retrieve("Какой бюджет проекта утверждён?", segments)
 
-    assert len(selected) <= 8
+    assert len(selected) <= SEEDS * 3
     assert "S36" in {s.id for s in selected}
     assert [s.start for s in selected] == sorted(s.start for s in selected)
 
@@ -79,3 +79,20 @@ def test_retrieval_does_not_match_unrelated_short_prefixes():
     unrelated = Segment(id="S20", start=20.0, end=21.0, text="Раз два три")
 
     assert retrieve("Пицца?", [*filler, unrelated]) == []
+
+
+def test_retrieval_keeps_every_segment_the_ranking_selected():
+    """The limit must not discard context the seed expansion already chose."""
+    segments = [
+        Segment(id=f"S{i}", start=float(i), end=i + 1.0, text="ничего важного не прозвучало")
+        for i in range(60)
+    ]
+    # Four well-separated seeds, each contributing itself plus a neighbour on either side.
+    for index in (5, 20, 35, 50):
+        segments[index] = Segment(
+            id=f"S{index}", start=float(index), end=index + 1.0, text="бюджет проекта утверждён"
+        )
+
+    selected = retrieve("Какой бюджет проекта утверждён?", segments)
+
+    assert {f"S{i}" for i in (5, 20, 35, 50)} <= {s.id for s in selected}

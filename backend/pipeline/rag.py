@@ -26,7 +26,12 @@ def same_stem(word: str, other: str) -> bool:
     return len(shorter) >= STEM_MIN and longer.startswith(shorter)
 
 
-def retrieve(question: str, segments: list[Segment], limit=8):
+# Four seeds each contribute their own turn plus one neighbour on either side, so a limit below
+# twelve silently discarded context the ranking had already chosen to include.
+SEEDS = 4
+
+
+def retrieve(question: str, segments: list[Segment], limit=SEEDS * 3):
     # Full short meetings avoid losing follow-up context to keyword mismatch.
     if len(segments) <= limit:
         return segments
@@ -40,7 +45,7 @@ def retrieve(question: str, segments: list[Segment], limit=8):
     # Strongest match first, each seed followed by its immediate context. Insertion order is
     # relevance order, so trimming to the limit drops the weakest turns, never the latest ones.
     selected: dict[int, None] = {}
-    for _, index in sorted(scores, key=lambda entry: (-entry[0], entry[1]))[:4]:
+    for _, index in sorted(scores, key=lambda entry: (-entry[0], entry[1]))[:SEEDS]:
         for neighbour in (index, index - 1, index + 1):
             if 0 <= neighbour < len(segments):
                 selected.setdefault(neighbour, None)

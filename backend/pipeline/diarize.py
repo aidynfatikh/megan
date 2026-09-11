@@ -29,6 +29,15 @@ class DiarizationError(RuntimeError):
 # attribute one person's words to another.
 SINGLE_VOICE_COVERAGE = 0.5
 
+# Sortformer emits turns at 0.16 s granularity and produces occasional flickers shorter than a
+# spoken word. One such flicker inside another speaker's stretch makes the whole ASR segment
+# multi-voice and therefore unattributed. Measured on five real recordings, discarding them
+# lowers unattributed segments from 23.3% to 21.3%. The same threshold is already used as
+# MIN_SEG_DUR in the original diarization scripts. A 0.5 s cut would reach 15.8% but can delete
+# genuine backchannels such as "да", which would be misattributed to the surrounding voice
+# rather than left unknown.
+MIN_TURN_SEC = 0.2
+
 
 class SpeakerTurn(Model):
     start: float = Field(ge=0)
@@ -140,6 +149,8 @@ async def diarize(settings: Settings, audio: Path, directory: Path, duration: fl
                 settings.nemo_speech_bin, "--version", timeout=10, env=offline_env()
             )
             runtime = version.decode(errors="replace").strip()[:200] or "NeMo-Speech.cpp"
+        # Drop sub-word flickers before counting voices, so one cannot look like a fifth speaker.
+        turns = [t for t in turns if t.end - t.start >= MIN_TURN_SEC] or turns
         if len({t.speaker for t in turns}) > 4:
             raise ValueError("More than four speakers returned")
         for t in turns:

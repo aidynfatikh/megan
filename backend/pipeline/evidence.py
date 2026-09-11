@@ -12,8 +12,23 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text)).casefold().strip()
 
 
+def comparable(text: str) -> str:
+    """Normalize for quote matching, ignoring punctuation.
+
+    Whisper invents the punctuation in a transcript; the speaker never dictated it. A model that
+    quotes the same words while dropping a comma or an em dash was quoting real speech, so
+    rejecting it means matching on an ASR artifact rather than on content. Punctuation becomes a
+    space so that neighbouring words cannot be fused into one token.
+    """
+    stripped = "".join(
+        " " if unicodedata.category(character).startswith("P") else character
+        for character in unicodedata.normalize("NFKC", text)
+    )
+    return re.sub(r"\s+", " ", stripped).casefold().strip()
+
+
 def adjacent_sources(entry: Evidence, segments: dict[str, Segment]) -> list[Source]:
-    quote = normalize(entry.quote)
+    quote = comparable(entry.quote)
     if not quote or entry.segment_id not in segments:
         return []
     ordered = sorted(segments.values(), key=lambda s: (s.start, s.end))
@@ -31,7 +46,7 @@ def adjacent_sources(entry: Evidence, segments: dict[str, Segment]) -> list[Sour
                 continue
             if any(b.start - a.end > 2 for a, b in zip(window, window[1:], strict=False)):
                 continue
-            texts = [normalize(s.text) for s in window]
+            texts = [comparable(s.text) for s in window]
             joined = " ".join(texts)
             offset = joined.find(quote)
             while offset >= 0:
@@ -43,7 +58,7 @@ def adjacent_sources(entry: Evidence, segments: dict[str, Segment]) -> list[Sour
                         if fragment:
                             # Preserve original case/spacing wherever possible. NFKC matching
                             # retains the existing canonical-text comparison semantics.
-                            pattern = r"\s+".join(re.escape(w) for w in fragment.split())
+                            pattern = r"\W+".join(re.escape(w) for w in fragment.split())
                             raw = re.search(pattern, segment.text, re.IGNORECASE)
                             sources.append(
                                 Source(

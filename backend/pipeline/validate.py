@@ -7,7 +7,7 @@ from backend.pipeline.conditions import omitted_final_condition
 from backend.pipeline.dates import resolve_due
 from backend.pipeline.deadlines import RELATIVE_WORDS, original_relative_deadline
 from backend.pipeline.decisions import has_explicit_adoption
-from backend.pipeline.evidence import adjacent_sources, normalize
+from backend.pipeline.evidence import adjacent_sources, comparable, normalize
 from backend.schemas import (
     Action,
     Checks,
@@ -90,17 +90,17 @@ def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field:
         if segment is None:
             refs_valid = quotes_match = False
             reasons.append(f"invalid_reference:{field}")
-        elif not normalize(entry.quote) or normalize(entry.quote) not in normalize(segment.text):
+        elif not comparable(entry.quote) or comparable(entry.quote) not in comparable(segment.text):
             adjacent = adjacent_sources(entry, segments)
             if adjacent:
                 sources.extend(adjacent)
                 reasons.append(f"adjacent_segment_quote:{field}")
-                if field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+                if field == "claim" and len(comparable(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
                     reasons.append(f"weak_evidence:{field}")
                 continue
             quotes_match = False
             reasons.append(f"quote_mismatch:{field}")
-        elif field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+        elif field == "claim" and len(comparable(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
             reasons.append(f"weak_evidence:{field}")
         sources.append(
             Source(
@@ -291,7 +291,7 @@ def ground_report(
             if not checks or not checks.references_valid or not checks.quotes_match:
                 return False
             return value is None or any(
-                normalize(value) in normalize(s.quote) for s in entries_by_field[field]
+                comparable(value) in comparable(s.quote) for s in entries_by_field[field]
             )
 
         assignee = entry.assignee

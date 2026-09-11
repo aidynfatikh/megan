@@ -310,3 +310,37 @@ def test_a_single_common_word_cannot_verify_a_claim():
     assert "weak_evidence:claim" in thin
     assert solid == []
     assert due == []
+
+
+def test_quote_matching_ignores_punctuation_whisper_invented():
+    """The speaker did not dictate the commas; only the words are evidence."""
+    segments = {
+        s.id: s
+        for s in [
+            Segment(id="S1", start=0, end=4, text="Так, Алекс, отправит смету до пятницы."),
+            Segment(id="S2", start=4, end=8, text="Мы решили — поставщика не меняем."),
+        ]
+    }
+    _, commas, _ = check_sources(
+        [Evidence(segment_id="S1", quote="Алекс отправит смету")], segments, "task"
+    )
+    _, dash, _ = check_sources(
+        [Evidence(segment_id="S2", quote="Мы решили поставщика не меняем")], segments, "task"
+    )
+    _, different, _ = check_sources(
+        [Evidence(segment_id="S1", quote="Алекс отправит отчёт")], segments, "task"
+    )
+
+    assert commas.quotes_match
+    assert dash.quotes_match
+    # Dropping punctuation must not let genuinely different words through.
+    assert not different.quotes_match
+
+
+def test_punctuation_removal_does_not_fuse_neighbouring_words():
+    segments = {"S1": Segment(id="S1", start=0, end=3, text="Мы решили—поставщика не меняем")}
+    _, checks, _ = check_sources(
+        [Evidence(segment_id="S1", quote="решили поставщика")], segments, "task"
+    )
+
+    assert checks.quotes_match

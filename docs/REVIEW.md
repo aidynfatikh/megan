@@ -49,8 +49,15 @@ The Cyrillic penalty is structural: Russian and Kazakh get roughly 60% of Englis
 because they tokenize worse. A 20-minute Russian meeting was accepted, decoded, transcribed and
 diarized before being refused.
 
-The size cap has been raised so that duration is the governing policy for uncompressed input.
-The prompt bound is now checked immediately after transcription, before the speaker stage.
+The size cap has been raised so that duration is the governing policy for uncompressed input,
+and the prompt bound is checked immediately after transcription, before the speaker stage.
+
+The per-language figures above were derived from a bytes-per-token estimate, which has since been
+replaced by the pinned Qwen tokenizer, so real capacity is now measured rather than approximated.
+One consequence deserves attention: when that tokenizer file is absent, `prompt_tokens` falls back
+to counting UTF-8 bytes, which is deliberately strict and returns Russian capacity to roughly four
+minutes. Preflight now reports the tokenizer as a readiness check, because a machine missing it
+looks healthy while silently refusing meetings the tested profile accepts.
 
 **Correction to an earlier characterisation:** the capacity guard has always run before the
 HTTP request, so the language model was never wasted on an oversized transcript. The wasted work
@@ -72,8 +79,16 @@ labelled. Where two voices share a segment the text genuinely contains both spea
 word-level timestamps it cannot be split, and a dominant-speaker guess would attribute one
 participant's words to another. Those stay unknown deliberately.
 
-Unattributed share fell from 32.5% to 23.3% at 7 s segments. The residual is almost entirely the
-mixed case. All of this is 2-speaker audio; 3–4 speakers will straddle more.
+Sortformer also emits occasional turns shorter than a spoken word — 8.9% of all turns are under
+0.5 s, and its frame granularity is 0.16 s. One such flicker inside another speaker's stretch was
+enough to make a whole ASR segment multi-voice. Turns under 0.2 s are now discarded before voices
+are counted, which also prevents a flicker from appearing to be a fifth speaker. A 0.5 s cut was
+measured at 15.8% but rejected: it deletes genuine backchannels such as «да», which would then be
+misattributed to the surrounding voice rather than left unknown.
+
+Unattributed share fell from 32.5% to 23.3% with the coverage floor, and to 21.3% once flickers
+were dropped, at 7 s segments. The residual is almost entirely the genuinely mixed case. All of
+this is 2-speaker audio; 3–4 speakers will straddle more.
 
 ## Deadline resolution
 
@@ -100,20 +115,23 @@ returned false, so **the owner was dropped and the deadline marked unsupported**
 data was being destroyed by a formatting artifact. This is the likeliest single contributor to
 the 7-of-17 and 8-of-14 review-flag counts in the YouTube evaluation.
 
-A quote is now grounded when it continues contiguously into the following segments, bounded to
-four segments and a 2-second gap. The words must run without interruption and must begin in the
-cited segment, which remains far stricter than searching the meeting. Source playback extends to
-cover the whole quoted phrase. A quote stitched across unrelated parts of the meeting, and an
-absent quote, are both still rejected.
-
-A spanning quote cannot establish a speaker: the first-person wording may belong to whoever
-spoke the continuation.
+A quote is now grounded when it continues contiguously into adjacent segments, bounded to four
+segments and a 2-second gap, and it is split into one cited fragment per segment so each carries
+its own timing. A quote stitched across unrelated parts of the meeting is still rejected, as is an
+absent one, and a passage that occurs ambiguously more than once is refused rather than resolved
+to an arbitrary occurrence.
 
 **A single common word verified a claim.** A quote of «и» passed unflagged. Action fields were
 already protected, because the owner, date or priority must appear inside the quote; claims —
 decisions, risks, open questions, summary, topic theses — were not. Thin claim evidence is now
 surfaced for review rather than silently marked verified. One-token deadline quotes such as
 "tomorrow" remain acceptable, as the extraction policy requires them.
+
+**Quote matching was sensitive to punctuation Whisper invented.** A model quoting the same words
+while dropping a comma or an em dash was rejected exactly like a fabrication, although the speaker
+never dictated the punctuation in the first place. Matching now compares words, with punctuation
+folded to a space so neighbouring words cannot be fused. Genuinely different words are still
+rejected.
 
 This does not make the check semantic. Evidence linkage still means the words were said, not
 that the claim drawn from them is correct.
@@ -171,10 +189,14 @@ Ordered by how likely it is to appear in an unfamiliar recording.
 
 | Area | Change |
 |---|---|
-| `pipeline/validate.py` | Contiguous cross-segment quotes accepted; playback extended to the quoted span; spanning quotes barred from establishing a speaker; minimum evidence for claims |
+| `pipeline/validate.py`, `pipeline/evidence.py` | Contiguous cross-segment quotes accepted and split per segment; minimum evidence for claims |
+| `runtime.py` | Report tokenizer reported as a readiness check |
 | `pipeline/dates.py` | Weekday names and bare day/month dates resolved against the meeting date |
 | `pipeline/structure.py` | Capacity check extracted and reusable; prompt construction shared |
 | `worker.py` | Capacity checked before the speaker stage |
 | `config.py` | Upload cap aligned with the duration policy |
+| `pipeline/diarize.py` | Sub-word diarization flickers discarded before voices are counted |
+| `pipeline/validate.py` | Quote matching made insensitive to Whisper-invented punctuation |
+| `pipeline/rag.py` | Retrieval limit aligned with seed expansion, so chosen context is not discarded |
 
 Regression tests accompany each change and were confirmed to fail against the previous code.

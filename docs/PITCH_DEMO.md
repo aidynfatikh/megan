@@ -57,7 +57,7 @@ Include genuine, clearly stated next steps if they belong in the pitch: one owne
 
 Keep hypothetical examples distinguishable from actual commitments. A pitch saying “imagine someone assigns a task” is a different interpretation problem from a real assignment, and has not been specifically benchmarked here.
 
-The most convincing reveal is a correct summary, one accurate task, and playback of the words just spoken. Automatic recognition of the presenters' real names is not implemented; anonymous speaker labels are expected unless a user renames them.
+The most convincing reveal is a correct summary, one accurate task, and playback of the words just spoken. Automatic recognition of the presenters' real names is not implemented; anonymous speaker labels are expected, and the interface filters by voice rather than renaming one.
 
 ## Changes and tests before relying on this demo
 

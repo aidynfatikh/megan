@@ -8,20 +8,19 @@ export function Transcript({
   currentTime,
   selected,
   onSource,
-  onRename,
 }: {
   job: Job;
   currentTime: number;
   selected?: string;
   onSource: (source: Source) => void;
-  onRename: (id: string, name: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
-  const [renaming, setRenaming] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const segments = job.segments.filter((s) =>
-    s.text.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+  const [voices, setVoices] = useState<string[]>([]);
+  const filtering = voices.length > 0;
+  const segments = job.segments.filter(
+    (s) =>
+      s.text.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
+      (!filtering || (s.speaker_id != null && voices.includes(s.speaker_id))),
   );
   return (
     <section className="transcript-panel panel">
@@ -38,62 +37,37 @@ export function Transcript({
           onChange={(e) => setSearch(e.target.value)}
         />
       </label>
-      <div className="speaker-legend">
-        {job.speakers.map((speaker, i) => (
-          <button
-            key={speaker.id}
-            className={`speaker-chip speaker-${i % 4}`}
-            disabled={job.provenance.sample || job.status !== "done"}
-            title="Rename speaker"
-            onClick={() => {
-              setRenaming(speaker.id);
-              setName(speaker.name);
-            }}
-          >
-            <span />
-            {speaker.name}
-          </button>
-        ))}
-      </div>
+      {job.speakers.length > 0 && (
+        <div
+          className="speaker-legend"
+          role="group"
+          aria-label="Filter by speaker"
+        >
+          {job.speakers.map((speaker, i) => (
+            <button
+              key={speaker.id}
+              className={`speaker-chip speaker-${i % 4}`}
+              aria-pressed={voices.includes(speaker.id)}
+              onClick={() =>
+                setVoices((current) =>
+                  current.includes(speaker.id)
+                    ? current.filter((id) => id !== speaker.id)
+                    : [...current, speaker.id],
+                )
+              }
+            >
+              <span />
+              {speaker.name}
+            </button>
+          ))}
+        </div>
+      )}
       {job.diarization_status === "done" && (
         <p className="empty-note">
-          Speaker labels are estimates. Rename a voice after checking the audio.
-          Passages with multiple voices or insufficient coverage remain unknown.
+          Speaker labels are estimates; check the audio before relying on one.
+          Passages with multiple voices or insufficient coverage remain unknown,
+          and a speaker filter hides them.
         </p>
-      )}
-      {renaming && (
-        <form
-          className="rename-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            try {
-              await onRename(renaming, name);
-              setRenaming(null);
-              setError("");
-            } catch (err) {
-              setError((err as Error).message);
-            }
-          }}
-        >
-          <input
-            aria-label="Speaker name"
-            value={name}
-            maxLength={100}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <button className="secondary-button" disabled={!name.trim()}>
-            Save
-          </button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => setRenaming(null)}
-          >
-            Cancel
-          </button>
-          {error && <p role="alert">{error}</p>}
-        </form>
       )}
       <div className="transcript-lines">
         {segments.map((s) => {
@@ -131,7 +105,7 @@ export function Transcript({
         })}
         {!segments.length && (
           <p className="empty-note">
-            {search
+            {search || filtering
               ? "No matching transcript segments."
               : "The transcript will appear here."}
           </p>

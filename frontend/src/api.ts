@@ -46,17 +46,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     }),
-  renameSpeaker: (
-    id: string,
-    speakerId: string,
-    name: string,
-    revision: number,
-  ) =>
-    request<Job>(`/jobs/${id}/speakers/${speakerId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, revision }),
-    }),
   chat: (id: string, question: string) =>
     request<Answer>(`/jobs/${id}/chat`, {
       method: "POST",

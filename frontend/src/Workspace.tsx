@@ -294,6 +294,12 @@ export default function Workspace({ route }: { route: string }) {
     goTo(next ? `/meetings/${next.id}` : "/workspace");
   }
 
+  function closeSource() {
+    setSource(null);
+    // The panel starts playback at the quotation, so closing it also stops that playback.
+    audio.current?.pause();
+  }
+
   function viewSource(next: Source) {
     setSource(next);
     if (audio.current && next.start != null && !sample) {
@@ -722,12 +728,14 @@ export default function Workspace({ route }: { route: string }) {
                   </button>
                 </section>
               )}
-              {job.warnings.map((warning, i) => (
-                <div className="notice" key={i}>
-                  <AlertCircle size={16} />
-                  {warning}
-                </div>
-              ))}
+              {job.warnings
+                .filter((warning) => !warning.startsWith("Speaker separation supports"))
+                .map((warning, i) => (
+                  <div className="notice" key={i}>
+                    <AlertCircle size={16} />
+                    {warning}
+                  </div>
+                ))}
 
               {(report || job.segments.length > 0) && (
                 <>
@@ -763,16 +771,6 @@ export default function Workspace({ route }: { route: string }) {
                           currentTime={currentTime}
                           selected={source?.segment_id}
                           onSource={viewSource}
-                          onRename={async (id, name) =>
-                            updateJob(
-                              await api.renameSpeaker(
-                                job.id,
-                                id,
-                                name,
-                                job.report_revision ?? 1,
-                              ),
-                            )
-                          }
                         />
                       )}
                     </div>
@@ -783,7 +781,7 @@ export default function Workspace({ route }: { route: string }) {
                           <button
                             className="icon-button section-meta"
                             aria-label="Close source"
-                            onClick={() => setSource(null)}
+                            onClick={closeSource}
                           >
                             <X size={16} />
                           </button>

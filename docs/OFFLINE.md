@@ -8,7 +8,7 @@ Installation and model downloads require connectivity. Recording jobs must work 
 2. Stop the API and project Ollama server. Disconnect Wi-Fi/Ethernet and external VPN routes; retain loopback. Avoid disconnecting a machine you control only remotely.
 3. Start local PostgreSQL, `bash scripts/run_ollama.sh`, and `bash scripts/run_local.sh`.
 4. In a fresh browser tab, open `http://127.0.0.1:8000`. Load the actual recording through the file picker. Do not rely on the illustrative example or a previously generated report.
-5. Check all mandatory sections, play a source, edit a task, export JSON/CSV/ICS, and ask a question. With Sortformer enabled, inspect recurring voices, unknown attribution, and a speaker rename. Repeat with another recording.
+5. Check all mandatory sections, play a source, edit a task, export JSON/CSV/ICS, and ask a question. With Sortformer enabled, inspect recurring voices, unknown attribution, and the speaker filter. Repeat with another recording.
 6. Restart the API. Confirm completed jobs and edited revisions persist. Inspect browser Network for remote requests, including fonts and scripts.
 7. Save the reports, stage timings, runtime/model versions, and GPU/system-memory observations. Restore connectivity only after the rehearsal.
 

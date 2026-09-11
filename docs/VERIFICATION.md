@@ -216,3 +216,48 @@ profile is unchanged until it is measured on that machine, since its memory beha
 
 Beyond 30 minutes the answer is chunking rather than a larger window, and map-reduce with
 reconciliation of superseded decisions remains deferred.
+
+### Long meetings: consecutive parts instead of a duration limit (2026-09-11, RTX 4060)
+
+A transcript larger than the prompt budget is now read in consecutive parts and merged, so
+duration is bounded by processing time and disk rather than by the context window.
+`MAX_DURATION_SEC` moves to four hours and the upload cap to 700 MB.
+
+How it works, and why it is not simply map-reduce over text:
+
+- `plan_chunks` splits on **segment boundaries only**, so evidence identifiers and timestamps stay
+  global and every quotation still points at the segment it came from. Parts overlap by two
+  segments, because a commitment stated at the end of one part is often qualified at the start of
+  the next.
+- Each part is extracted with the **unchanged** report prompt, so per-part behaviour is the tested
+  behaviour.
+- Merging is a separate, narrower pass. It may only combine, drop or re-status existing items, and
+  it is told to copy every `segment_id` and quote verbatim. Later parts override earlier ones,
+  using the existing `superseded`, `rejected` and `completed` vocabulary — this is the semantic
+  problem [ANALYSIS.md](ANALYSIS.md) identified, where a decision made early can be reversed later.
+- The merged draft is then grounded against the **whole** transcript exactly as before. The merge
+  therefore cannot introduce evidence: anything invented fails the quote check instead of reaching
+  the report.
+- Merges of many parts fold in batches; if one part cannot be merged within the context, the job
+  fails with an explanation rather than looping.
+
+**Measured.** With `LLM_CONTEXT` lowered to 16384 to force splitting, the 25-minute Russian
+recording was read in **2 parts** and completed in **230 s**. Evidence in the merged report spans
+`S16` to `S365` of 367 segments, so both parts contributed, and **12 of 12 claims had valid
+references and matching quotes against the full transcript**. The job carries a visible warning
+naming the number of parts and advising review of anything that changed mid-meeting. At the shipped
+32K setting the same recording is a single part and the behaviour is unchanged: 78 s, no warning.
+
+**A real defect surfaced here.** The first two attempts failed with `done_reason: length` at exactly
+3500 output tokens. A merge mostly reproduces its inputs, so reserving the ordinary report
+allowance truncated it. Merging now receives the context left over after its prompt, and batching
+requires room to re-emit at least as much as was supplied.
+
+**Known quality limitation.** In the two-part run the merged summary collapsed to a single
+sentence where the policy asks for three to five, and open questions and risks grew relative to the
+single-part run. Merging preserves evidence correctly but does not yet preserve summary shape.
+Long-meeting output should be reviewed before it is shown to anyone.
+
+Still unmeasured: more than two parts against real audio, meetings past one hour end to end,
+Kazakh at any length, and whether supersession is actually detected when a real meeting reverses an
+earlier decision.

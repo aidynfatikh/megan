@@ -9,6 +9,7 @@ from backend.config import Settings
 from backend.db import BusyError, Repository
 from backend.pipeline.asr import transcribe
 from backend.pipeline.audio import AudioError, normalize_audio
+from backend.pipeline.chunking import plan_chunks
 from backend.pipeline.diarize import align_speakers, diarize
 from backend.pipeline.structure import ExtractionError, Ollama
 from backend.pipeline.validate import ground_report
@@ -67,9 +68,19 @@ class Pipeline:
         if not job.segments:
             job.diarization_status = "disabled"
             return Report(title="No usable speech", content_status="no_usable_speech")
-        # An over-long transcript cannot produce a report, so stop before spending the speaker
-        # stage on it. The bound inside the extraction client remains authoritative.
-        self.ollama.check_capacity(job.segments, job.report_language)
+        # A transcript larger than the prompt budget is split into consecutive parts rather than
+        # refused. Planning it here also fails a genuinely impossible input before the speaker
+        # stage runs. The bound inside the extraction client remains authoritative.
+        chunks = plan_chunks(job.segments, self.settings, job.report_language)
+        if len(chunks) > 1:
+            job.warnings = [w for w in job.warnings if not w.startswith("This meeting was")]
+            job.warnings.append(
+                f"This meeting was longer than one prompt, so it was read in {len(chunks)} "
+                "consecutive parts and merged. Later parts override earlier ones; review "
+                "decisions and tasks that changed during the meeting."
+            )
+        else:
+            self.ollama.check_capacity(job.segments, job.report_language)
         if self.settings.diarization_backend != "none" and job.diarization_status != "done":
             job.diarization_status = "running"
             job.provenance.diarization_backend = self.settings.diarization_backend
@@ -112,7 +123,11 @@ class Pipeline:
         )
         job.provenance.llm_digest = selected.get("digest") if selected else None
         try:
-            draft = await self.ollama.extract(job.segments, job.report_language)
+            draft = (
+                await self.ollama.extract_long(chunks, job.report_language)
+                if len(chunks) > 1
+                else await self.ollama.extract(job.segments, job.report_language)
+            )
         finally:
             (directory / "extraction.attempts.json").write_text(
                 json.dumps(self.ollama.last_attempts, ensure_ascii=False, indent=2),

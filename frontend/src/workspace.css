@@ -1133,3 +1133,25 @@
   color: inherit;
   font: inherit;
 }
+
+.chat-panel .chat-options {
+  margin: 18px 0;
+}
+.chat-panel .chat-options label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chat-panel .chat-options select {
+  min-width: 180px;
+  border: 1px solid #dfe6d5;
+}
+.chat-panel .chat-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #718060;
+}
+.chat-panel form input {
+  min-height: 44px;
+}

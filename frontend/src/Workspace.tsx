@@ -919,28 +919,7 @@ export default function Workspace({ route }: { route: string }) {
                           ))}
                         </select>
                       </label>
-                      <button
-                        className="text-button"
-                        type="button"
-                        disabled={asking}
-                        onClick={() =>
-                          setQuestion(
-                            job.report_language === "ru"
-                              ? "Что решили по бюджету?"
-                              : job.report_language === "kk"
-                                ? "Бюджет туралы не шешілді?"
-                                : "What was decided about the budget?",
-                          )
-                        }
-                      >
-                        Try a budget question
-                      </button>
                     </div>
-                    <p className="muted">
-                      Ask in Russian, Kazakh or English. Choose a speaker to
-                      search only their attributed words; rename voices in the
-                      transcript.
-                    </p>
                     <form
                       onSubmit={async (e) => {
                         e.preventDefault();
@@ -966,7 +945,7 @@ export default function Workspace({ route }: { route: string }) {
                     >
                       <input
                         aria-label="Question about this meeting"
-                        placeholder="What did we agree about the launch?"
+                        placeholder="Ask a question about this meeting…"
                         value={question}
                         maxLength={1000}
                         onChange={(e) => setQuestion(e.target.value)}
@@ -985,6 +964,10 @@ export default function Workspace({ route }: { route: string }) {
                         )}
                       </button>
                     </form>
+                    <p className="chat-hint">
+                      Ask in Russian, Kazakh or English. Answers include
+                      transcript sources.
+                    </p>
                     {(asking || health?.busy) && (
                       <p className="muted" role="status">
                         {asking

@@ -169,9 +169,17 @@ export function ReportView({
                       <div className="task-title">{item.task}</div>
                       <div className="task-owner">
                         <span className="avatar tiny">
-                          {(item.assignee ?? "?").slice(0, 1)}
+                          {(
+                            item.assignee ??
+                            job.speakers.find((s) => s.id === item.speaker_id)
+                              ?.name ??
+                            "?"
+                          ).slice(0, 1)}
                         </span>
-                        {item.assignee ?? "Unassigned"}
+                        {item.assignee ??
+                          job.speakers.find((s) => s.id === item.speaker_id)
+                            ?.name ??
+                          "Unassigned"}
                         {item.review.state === "edited" ? (
                           <span className="mini-label">Edited</span>
                         ) : item.review.state === "needs_review" ? (

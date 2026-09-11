@@ -519,7 +519,7 @@
   border: 1px solid #e7eddf;
   padding: 4px 7px;
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .speaker-chip > span {
   width: 4px;
@@ -528,16 +528,16 @@
   border-radius: 50%;
 }
 .speaker-0 {
-  color: #97aa80;
+  color: #51683f;
 }
 .speaker-1 {
-  color: #aa99b8;
+  color: #755b86;
 }
 .speaker-2 {
-  color: #bbad78;
+  color: #796228;
 }
 .speaker-3 {
-  color: #84a6b2;
+  color: #386d80;
 }
 .transcript-line {
   display: block;
@@ -558,8 +558,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 9px;
-  color: #b0bca0;
+  font-size: 11px;
+  color: #68755f;
   margin-bottom: 9px;
 }
 .speaker-name {
@@ -642,6 +642,7 @@
 }
 .stage-track {
   display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   margin-top: 27px;
   padding-top: 18px;
@@ -653,9 +654,9 @@
   align-items: center;
   gap: 7px;
   font-size: 10px;
-  color: #b9c5a9;
+  color: #67735f;
 }
-.stage-track > div > span {
+.stage-track > div > span:first-child {
   width: 23px;
   height: 23px;
   border: 1px solid #e5edd8;
@@ -665,16 +666,16 @@
   font-size: 9px;
 }
 .stage-track > div.current {
-  color: #789659;
+  color: #587044;
 }
-.stage-track > div.current > span {
+.stage-track > div.current > span:first-child {
   background: #eaf1dd;
   border-color: #cddcb9;
 }
 .stage-track > div.complete {
   color: #627056;
 }
-.stage-track > div.complete > span {
+.stage-track > div.complete > span:first-child {
   background: #f0f5e5;
 }
 .edit-dialog {

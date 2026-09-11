@@ -19,7 +19,7 @@ from backend.example import example_job
 from backend.pipeline.export import export_csv, export_ics
 from backend.pipeline.rag import answer_question
 from backend.pipeline.structure import ExtractionError, Ollama
-from backend.runtime import asr_available
+from backend.runtime import asr_available, diarization_available
 from backend.schemas import ActionPatch, ChatRequest, Due, Job, Provenance, SpeakerPatch
 from backend.worker import Runner
 
@@ -131,6 +131,7 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
             "llm": settings.ollama_model,
             "llm_digest": digest,
             "diarization": settings.diarization_backend,
+            "diarization_ready": await diarization_available(settings),
             "chat_enabled": settings.enable_chat,
             "max_upload_mb": settings.max_upload_mb,
             "max_duration_sec": settings.max_duration_sec,
@@ -187,6 +188,9 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
                 updated_at=now,
                 meeting_date=meeting_date,
                 report_language=report_language,
+                diarization_status="pending"
+                if settings.diarization_backend != "none"
+                else "disabled",
                 provenance=Provenance(
                     asr_backend=settings.asr_backend,
                     asr_model=settings.asr_model_path.name,
@@ -270,9 +274,11 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
             )
         if format == "csv":
             return Response(
-                export_csv(job.report), media_type="text/csv; charset=utf-8", headers=headers
+                export_csv(job.report, job.speakers),
+                media_type="text/csv; charset=utf-8",
+                headers=headers,
             )
-        content, skipped = export_ics(job.report, str(job_id))
+        content, skipped = export_ics(job.report, str(job_id), job.speakers)
         headers["X-Skipped-Undated-Tasks"] = str(skipped)
         return Response(content, media_type="text/calendar; charset=utf-8", headers=headers)
 

@@ -11,7 +11,7 @@ This records actual local work, separate from the planned acceptance targets in 
 - Cited meeting chat reusing Qwen and keyword retrieval. No extra embedding model.
 - Explicit online setup with pinned Whisper revisions/checksums; offline launch scripts; readiness CLI; dependency locks; CI checks.
 
-Speaker diarization, long-meeting chunking, specialized Kazakh re-decoding, PDF, and dense retrieval are deferred. `DIARIZATION_BACKEND` accepts only `none` in this release.
+Optional Sortformer speaker separation has been added with NeMo and C++ adapters; see [DIARIZATION.md](DIARIZATION.md). Long-meeting chunking, automatic speaker naming, specialized Kazakh re-decoding, PDF, and dense retrieval remain deferred. Fresh installs still default to `DIARIZATION_BACKEND=none`.
 
 ## TDD evidence
 
@@ -42,8 +42,8 @@ The automated suite includes real PostgreSQL integration tests. Model adapters a
 
 ## Results recorded so far
 
-- 77 normal backend tests passed; 6 opt-in model cases skipped in the normal run.
-- 6 frontend tests passed; TypeScript/build and dependency-lock installation passed. `npm audit` during installation reported no vulnerabilities.
+- 115 normal backend tests passed after the Sortformer addition; 7 opt-in model cases skipped in the normal run.
+- 9 frontend tests passed; TypeScript/build passed. Dependency-lock installation and `npm audit` passed during the base implementation.
 - Ruff lint/format, Git whitespace check, shell syntax, and Compose configuration checks passed.
 - Real Qwen cases: no assignments (EN), corrected deadline (RU), explicit owner (KK), mentioned non-owner (EN), and conditional assignment (mixed). Four passed together; the remaining mixed case passed after the missing-citation regression fix. These test selected owners/dates/conditions and source matching, not full semantic accuracy or audio recognition quality.
 - Real 27.34-second English synthetic audio completed in **55.50 seconds** with the API and Ollama under the macOS loopback-only process profile: decode 0.04s, ASR 2.44s, report stage 52.95s. Output contained the expected two tasks, owners Alex/Mira, dates 2026-09-12/2026-09-18, unspecified priorities, and the rejected-Friday decision. Ollama's process listing was empty after generation.
@@ -55,6 +55,19 @@ The automated suite includes real PostgreSQL integration tests. Model adapters a
 - The isolation harness was checked separately: loopback TCP succeeded; an external TCP attempt failed with `PermissionError`. This does not isolate an already-running browser; browser network inspection and the complete disconnected RTX rehearsal remain separate checks.
 
 Raw local artifacts are in `.local/evaluation/` and are ignored by Git. Timings are individual development runs with ordinary background applications, not a statistical performance claim. Synthetic English speech is easier than unfamiliar noisy multilingual jury audio.
+
+## Sortformer addition (2026-09-11)
+
+- TDD cycles started with failing alignment/adapter tests, then owner-attribution and setup-checksum regressions, then UI tests. Additional failing cases covered stale optional-stage status after silence or disabling before retry. The real Qwen self-assignment test first failed and then passed after source-based speaker-ID recovery.
+- NeMo-Speech.cpp **0.1.0**, Apple Silicon Metal release, and NVIDIA's Sortformer v2 Q8 GGUF were downloaded with verified SHA-256 checksums. The pinned setup script was also run against these installed artifacts. The GGUF hash is `0679cfeb1ce356d0dea9470b31274f4bfc7eb927497d82005483770666da998a`; see the model manifest for the repository revision and runtime archive hash.
+- A standalone 27.34-second, single-voice synthetic recording produced one voice; the initial invocation took **8.07 seconds** including runtime startup.
+- A chronological **39.09-second, two-voice synthetic meeting** (Samantha/Daniel/Samantha/Daniel) produced four corresponding diarized turns and two stable speaker labels. Nine of twelve ASR segments received labels; three crossed voice boundaries and stayed unknown.
+- The final full API run completed in **73.28 seconds**, including **1.76 seconds** in the diarization stage. It retained the explicit named owner Alex independently from the speaking voice, linked two supported first-person tasks to anonymous speakers, and left the task from a mixed-boundary segment unassigned. This is one synthetic development run, not a human diarization benchmark or a 4060 speed claim.
+- API, ASR/Sortformer children, and project Ollama ran under the existing macOS loopback-only process profile. Ollama had no resident model after the run. Peak GPU/RAM was not measured; the browser was not isolated by that process profile.
+- Browser playback reached the original **11.58-second** source. Renaming Speaker 1 to `Samantha (test voice)` persisted revision 2, updated its linked task and JSON/CSV/ICS exports, preserved Alex's separate assignment, and survived an API restart.
+- Ordinary tests include real child termination on timeout/cancellation and PostgreSQL rename/export round trips. NeMo/CUDA calls use controlled adapters here; the `.nemo` runtime remains unverified on Fatikh's hardware.
+
+Artifacts: `.local/evaluation/sortformer-meeting/` contains the synthetic recording, expected voice turns, initial/final reports, and exports. `.local/evaluation/model-cases/speaker-assignments*.json` contains the real Qwen regression output. These remain outside Git.
 
 ## Fatikh's acceptance pass
 

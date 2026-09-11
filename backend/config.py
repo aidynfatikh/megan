@@ -1,5 +1,6 @@
 import ipaddress
 import platform
+import sys
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -43,8 +44,12 @@ class Settings(BaseSettings):
     stage_timeout_sec: float = Field(default=600, gt=0, le=3600)
     max_duration_sec: float = Field(default=1800, gt=0, le=7200)
     max_upload_mb: int = Field(default=100, ge=1, le=1000)
-    # Deferred bonus: expose only the implemented profile in this release.
-    diarization_backend: Literal["none"] = "none"
+    diarization_backend: Literal["none", "sortformer_nemo", "sortformer_cpp"] = "none"
+    diarization_model_path: Path = Path("models/diar_streaming_sortformer_4spk-v2.nemo")
+    # An external interpreter lets Fatikh preserve his working NeMo environment.
+    diarization_python: str = sys.executable
+    nemo_speech_bin: str = "nemo-speech"
+    diarization_device: Literal["cpu", "cuda", "metal"] = "cpu"
     enable_chat: bool = True
 
     @field_validator("ollama_base_url")

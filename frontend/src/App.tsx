@@ -6,7 +6,6 @@ import {
   ArrowRight,
   AudioLines,
   CalendarDays,
-  Check,
   ChevronRight,
   Clock3,
   FileText,
@@ -28,8 +27,8 @@ import { ReportView } from "./components/ReportView";
 import { UploadView } from "./components/UploadView";
 import { EditTask } from "./components/EditTask";
 import { Transcript } from "./components/Transcript";
+import { ProcessingStages } from "./components/ProcessingStages";
 
-const stages = ["decode", "transcribe", "analyze", "check_sources"];
 const stageLabels: Record<string, string> = {
   queued: "Getting ready",
   decode: "Preparing audio",
@@ -37,6 +36,7 @@ const stageLabels: Record<string, string> = {
   transcribe: "Transcribing the conversation",
   transcript_ready: "Saving the transcript",
   diarize: "Separating speakers",
+  speakers_ready: "Saving speaker labels",
   analyze: "Finding decisions and next steps",
   check_sources: "Checking source references",
   persist: "Saving your report",
@@ -350,6 +350,9 @@ export default function App() {
                   ["Audio tools", health?.ffmpeg],
                   ["Whisper weights", health?.asr],
                   ["Ollama model", health?.ollama],
+                  ...(health && health.diarization !== "none"
+                    ? [["Sortformer (optional)", health.diarization_ready]]
+                    : []),
                 ].map(([label, ready]) => (
                   <div key={String(label)}>
                     <span className={`status-dot ${ready ? "ready" : ""}`} />
@@ -360,6 +363,9 @@ export default function App() {
               </div>
               <p className="muted">
                 ASR: {health?.asr_backend ?? "—"} · LLM: {health?.llm ?? "—"}.
+                {health?.diarization === "none"
+                  ? " Speaker separation is disabled. "
+                  : " "}
                 Run the setup and preflight commands in the README for missing
                 services.
               </p>
@@ -522,41 +528,7 @@ export default function App() {
                     </div>
                     <span className="elapsed">{timestamp(elapsed)}</span>
                   </div>
-                  <div className="stage-track">
-                    {stages.map((s, i) => {
-                      const stage =
-                        job.stage === "release_models"
-                          ? "transcribe"
-                          : ["transcript_ready", "diarize"].includes(job.stage)
-                            ? "analyze"
-                            : job.stage;
-                      const current = stages.indexOf(stage);
-                      return (
-                        <div
-                          key={s}
-                          className={
-                            i < current
-                              ? "complete"
-                              : i === current
-                                ? "current"
-                                : ""
-                          }
-                        >
-                          <span>
-                            {i < current ? <Check size={13} /> : i + 1}
-                          </span>
-                          {
-                            [
-                              "Prepare",
-                              "Transcribe",
-                              "Analyze",
-                              "Check sources",
-                            ][i]
-                          }
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ProcessingStages job={job} />
                 </section>
               )}
               {job.error && (

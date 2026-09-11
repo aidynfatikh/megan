@@ -70,3 +70,40 @@ async def test_chat_recognizes_task_ownership_from_an_explicit_assignment():
     assert result.supported
     assert "Alex" in result.answer
     assert any(s.segment_id == "S5" for s in result.citations)
+
+
+async def test_self_assignments_use_voices_without_naming_a_nonparticipant_speaker():
+    segments = [
+        Segment(
+            id="S1",
+            start=0,
+            end=4,
+            text="Alex will prepare the launch copy tomorrow.",
+            speaker_id="speaker_0",
+        ),
+        Segment(
+            id="S2",
+            start=5,
+            end=9,
+            text="I'll check the keyboard navigation tomorrow.",
+            speaker_id="speaker_1",
+        ),
+        Segment(
+            id="S3",
+            start=10,
+            end=14,
+            text="I'll prepare the launch checklist tomorrow.",
+            speaker_id="speaker_0",
+        ),
+    ]
+    draft = await Ollama(Settings()).extract(segments, "en")
+    report = ground_report(draft, segments, date(2026, 9, 11))
+    root = Path(".local/evaluation/model-cases")
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "speaker-assignments-draft.json").write_text(draft.model_dump_json(indent=2))
+    (root / "speaker-assignments.json").write_text(report.model_dump_json(indent=2))
+    assert len(report.action_items) == 3
+    by_source = {a.evidence["task"][0].segment_id: a for a in report.action_items}
+    assert (by_source["S1"].assignee, by_source["S1"].speaker_id) == ("Alex", None)
+    assert (by_source["S2"].assignee, by_source["S2"].speaker_id) == (None, "speaker_1")
+    assert (by_source["S3"].assignee, by_source["S3"].speaker_id) == (None, "speaker_0")

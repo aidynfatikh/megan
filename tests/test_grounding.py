@@ -173,3 +173,65 @@ def test_partial_deadline_quote_can_be_supplemented_by_full_task_quote():
     assert item.due.date == date(2026, 9, 18)
     assert [e.segment_id for e in item.evidence["due"]] == ["S2", "S1"]
     assert "due_evidence_from_task_quote" in item.review.reasons
+
+
+def test_named_assignee_is_not_linked_to_the_voice_that_mentions_them():
+    data = draft().model_dump()
+    data["action_items"][0]["speaker_id"] = "speaker_0"
+    segments = [SEGMENTS[0].model_copy(update={"speaker_id": "speaker_0"})]
+    item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
+    assert item.assignee == "Дана"
+    assert item.speaker_id is None  # The speaker may be assigning work to Dana.
+
+
+def test_invalid_owner_quote_cannot_link_a_task_to_a_real_speaker():
+    data = draft().model_dump()
+    data["action_items"][0].update(assignee=None, speaker_id="speaker_0")
+    data["action_items"][0]["evidence"]["assignee"] = [source(quote="I'll do it.")]
+    segments = [SEGMENTS[0].model_copy(update={"speaker_id": "speaker_0"})]
+    item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
+    assert item.speaker_id is None
+
+
+def test_self_assignment_keeps_anonymous_speaker_and_requires_review():
+    data = draft().model_dump()
+    data["action_items"][0].update(assignee=None, speaker_id="speaker_0", due_raw=None)
+    quote = "I'll send the estimate."
+    data["action_items"][0]["evidence"].update(
+        task=[source(quote=quote)], assignee=[source(quote=quote)], due=[]
+    )
+    segments = [Segment(id="S1", start=1, end=3, text=quote, speaker_id="speaker_0")]
+    item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
+    assert item.assignee is None
+    assert item.speaker_id == "speaker_0"
+    assert item.review.state == "needs_review"
+    assert "speaker_assignment_needs_review" in item.review.reasons
+
+
+def test_model_display_label_is_resolved_from_quoted_voice_not_its_guessed_number():
+    data = draft().model_dump()
+    data["action_items"][0].update(assignee="Speaker 0", speaker_id=None, due_raw=None)
+    quote = "I'll send the estimate."
+    data["action_items"][0]["evidence"].update(
+        task=[source(quote=quote)], assignee=[source(quote=quote)], due=[]
+    )
+    segments = [Segment(id="S1", start=1, end=3, text=quote, speaker_id="speaker_1")]
+    item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
+    assert (item.assignee, item.speaker_id) == (None, "speaker_1")
+    assert item.review.state == "needs_review"
+    assert "speaker_id_from_owner_quote" in item.review.reasons
+
+
+def test_missing_speaker_id_is_not_recovered_from_third_person_or_unknown_voice():
+    for quote, speaker in [
+        ("Alex will send the estimate.", "speaker_0"),
+        ("I'll send the estimate.", None),
+    ]:
+        data = draft().model_dump()
+        data["action_items"][0].update(assignee="Speaker 1", speaker_id=None, due_raw=None)
+        data["action_items"][0]["evidence"].update(
+            task=[source(quote=quote)], assignee=[source(quote=quote)], due=[]
+        )
+        segments = [Segment(id="S1", start=1, end=3, text=quote, speaker_id=speaker)]
+        item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
+        assert (item.assignee, item.speaker_id) == (None, None)

@@ -49,6 +49,11 @@ def negates_date(text, raw):
     )
 
 
+def first_person_commitment(quote):
+    # Only a lexical cue; all voice-based task ownership remains marked for review.
+    return bool(re.match(r"^(?:i(?:['’]ll|\s+will)\b|я\b|мен\b)", normalize(quote).lstrip('"“«')))
+
+
 def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field: str):
     sources, reasons = [], []
     refs_valid = quotes_match = bool(evidence)
@@ -105,7 +110,7 @@ def ground_report(
     for i, entry in enumerate(draft.action_items, 1):
         evidence, checks_by_field, reasons = {}, {}, []
         fields = ["task"]
-        if entry.assignee or entry.speaker_id:
+        if entry.assignee or entry.speaker_id or entry.evidence.assignee:
             fields.append("assignee")
         if entry.due_raw:
             fields.append("due")
@@ -177,13 +182,34 @@ def ground_report(
             assignee = None
             reasons.append("unsupported_assignee")
         speaker_id = entry.speaker_id
-        if speaker_id and not any(
-            segments[s.segment_id].speaker_id == speaker_id
-            for s in evidence["assignee"]
-            if s.segment_id in segments
+        generic_owner = entry.assignee is None or bool(
+            re.fullmatch(r"(?:speaker|говорящий|сөйлеуші)[ _-]*\d+", normalize(entry.assignee))
+        )
+        if generic_owner and speaker_id is None and supported("assignee"):
+            quoted_voices = {segments[s.segment_id].speaker_id for s in evidence["assignee"]}
+            if (
+                len(quoted_voices) == 1
+                and None not in quoted_voices
+                and any(first_person_commitment(s.quote) for s in evidence["assignee"])
+            ):
+                speaker_id = next(iter(quoted_voices))
+                assignee = None
+                reasons.append("speaker_id_from_owner_quote")
+        if speaker_id and (
+            not generic_owner
+            or not supported("assignee")
+            or not all(
+                segments[s.segment_id].speaker_id == speaker_id
+                for s in evidence["assignee"]
+                if s.segment_id in segments
+            )
+            or not any(first_person_commitment(s.quote) for s in evidence["assignee"])
         ):
             speaker_id = None
             reasons.append("unsupported_speaker")
+        elif speaker_id:
+            # A voice label and first-person wording still need semantic/audio review.
+            reasons.append("speaker_assignment_needs_review")
         due = resolve_due(entry.due_raw, meeting_date)
         if entry.due_raw and (
             not supported("due", entry.due_raw)

@@ -159,6 +159,9 @@ class Provenance(Model):
     llm: str
     llm_digest: str | None = None
     diarization_backend: str = "none"
+    diarization_model: str | None = None
+    diarization_model_sha256: str | None = None
+    diarization_runtime: str | None = None
     sample: bool = False
 
 
@@ -177,6 +180,7 @@ class Job(Model):
     timings: dict[str, float] = Field(default_factory=dict)
     segments: list[Segment] = Field(default_factory=list)
     speakers: list[Speaker] = Field(default_factory=list)
+    diarization_status: Literal["disabled", "pending", "running", "done", "failed"] = "disabled"
     report: Report | None = None
     report_revision: int = 0
     attempt: int = 1

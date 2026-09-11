@@ -364,6 +364,13 @@ export interface components {
       segments: components["schemas"]["Segment"][];
       /** Speakers */
       speakers: components["schemas"]["Speaker"][];
+      /**
+       * Diarization Status
+       * @default disabled
+       * @enum {string}
+       */
+      diarization_status:
+        "disabled" | "pending" | "running" | "done" | "failed";
       report: components["schemas"]["Report"] | null;
       /**
        * Report Revision
@@ -409,6 +416,12 @@ export interface components {
        * @default none
        */
       diarization_backend: string;
+      /** Diarization Model */
+      diarization_model: string | null;
+      /** Diarization Model Sha256 */
+      diarization_model_sha256: string | null;
+      /** Diarization Runtime */
+      diarization_runtime: string | null;
       /**
        * Sample
        * @default false

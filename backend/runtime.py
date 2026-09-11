@@ -8,6 +8,8 @@ import sys
 import psycopg
 
 from backend.config import Settings
+from backend.pipeline.asr import offline_env
+from backend.pipeline.process import run_process
 from backend.pipeline.structure import Ollama
 
 
@@ -42,6 +44,13 @@ async def preflight(settings: Settings):
         "context": settings.llm_context,
         "note": "Readiness checks do not establish GPU compatibility, output accuracy, or offline operation.",
     }
+    details["diarization_backend"] = settings.diarization_backend
+    details["diarization_ready"] = await diarization_available(settings)
+    if not details["diarization_ready"]:
+        details["diarization_warning"] = (
+            "Optional speaker separation is unavailable. Core reports can still run. "
+            "Check the local checkpoint, format, device, and runtime path."
+        )
     try:
         async with await psycopg.AsyncConnection.connect(
             settings.database_url, connect_timeout=3
@@ -65,3 +74,31 @@ async def preflight(settings: Settings):
             "Start the project Ollama server and download the configured model during setup."
         )
     return {"ready": all(checks.values()), "checks": checks, "details": details}
+
+
+async def diarization_available(settings: Settings) -> bool:
+    if settings.diarization_backend == "none":
+        return True
+    model = settings.diarization_model_path
+    nemo = settings.diarization_backend == "sortformer_nemo"
+    if (
+        not model.is_file()
+        or not model.stat().st_size
+        or model.suffix != (".nemo" if nemo else ".gguf")
+    ):
+        return False
+    if not nemo:
+        return bool(shutil.which(settings.nemo_speech_bin))
+    if settings.diarization_device == "metal":
+        return False
+    try:
+        await run_process(
+            settings.diarization_python,
+            "-c",
+            "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(n) is not None for n in ('nemo', 'torch')) else 1)",
+            timeout=5,
+            env=offline_env(),
+        )
+        return True
+    except Exception:
+        return False

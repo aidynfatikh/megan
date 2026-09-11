@@ -55,6 +55,12 @@ export function Transcript({
           </button>
         ))}
       </div>
+      {job.diarization_status === "done" && (
+        <p className="empty-note">
+          Speaker labels are estimates. Rename a voice after checking the audio.
+          Passages with multiple voices or insufficient coverage remain unknown.
+        </p>
+      )}
       {renaming && (
         <form
           className="rename-form"

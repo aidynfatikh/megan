@@ -2,7 +2,7 @@ import csv
 import io
 from datetime import UTC, datetime
 
-from backend.schemas import Report
+from backend.schemas import Action, Report, Speaker
 
 
 def safe_cell(value) -> str:
@@ -12,7 +12,11 @@ def safe_cell(value) -> str:
     return text
 
 
-def export_csv(report: Report) -> bytes:
+def owner_label(item: Action, speakers: list[Speaker] | None = None):
+    return item.assignee or next((s.name for s in speakers or [] if s.id == item.speaker_id), None)
+
+
+def export_csv(report: Report, speakers: list[Speaker] | None = None) -> bytes:
     output = io.StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(
@@ -27,6 +31,7 @@ def export_csv(report: Report) -> bytes:
             "timestamp",
             "quote",
             "review",
+            "speaker_id",
         ]
     )
     for item in report.action_items:
@@ -36,7 +41,7 @@ def export_csv(report: Report) -> bytes:
                 safe_cell(v)
                 for v in (
                     item.id,
-                    item.assignee,
+                    owner_label(item, speakers),
                     item.task,
                     item.due.date,
                     item.due.raw,
@@ -45,6 +50,7 @@ def export_csv(report: Report) -> bytes:
                     source.start if source else None,
                     source.quote if source else None,
                     item.review.state,
+                    item.speaker_id,
                 )
             ]
         )
@@ -72,7 +78,9 @@ def fold_line(line: str) -> str:
     return "\r\n".join(parts)
 
 
-def export_ics(report: Report, job_id: str) -> tuple[bytes, int]:
+def export_ics(
+    report: Report, job_id: str, speakers: list[Speaker] | None = None
+) -> tuple[bytes, int]:
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -92,7 +100,7 @@ def export_ics(report: Report, job_id: str) -> tuple[bytes, int]:
                 f"DTSTAMP:{stamp}",
                 f"SUMMARY:{ical_text(item.task)}",
                 f"DUE;VALUE=DATE:{item.due.date:%Y%m%d}",
-                f"DESCRIPTION:{ical_text('Owner: ' + (item.assignee or 'Unspecified'))}",
+                f"DESCRIPTION:{ical_text('Owner: ' + (owner_label(item, speakers) or 'Unspecified'))}",
                 "STATUS:NEEDS-ACTION",
                 "END:VTODO",
             ]

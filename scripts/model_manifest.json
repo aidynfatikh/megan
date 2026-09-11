@@ -15,6 +15,23 @@
     "weight": "model.bin",
     "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
   },
+  "sortformer": {
+    "repository": "nvidia/diar_streaming_sortformer_4spk-v2",
+    "revision": "5240a64075176943f677d30fa2171c780229f341",
+    "nemo": {
+      "filename": "diar_streaming_sortformer_4spk-v2.nemo",
+      "sha256": "b371afce2c4958186469df33d939936b9746c89f38b10a69cfd2c61254e83329"
+    },
+    "cpp": {
+      "filename": "diar_streaming_sortformer_4spk-v2.q8_0.gguf",
+      "sha256": "0679cfeb1ce356d0dea9470b31274f4bfc7eb927497d82005483770666da998a"
+    },
+    "mac_runtime": {
+      "version": "v0.1.0",
+      "filename": "nemo-speech-0.1.0-macos-aarch64-metal.tar.gz",
+      "sha256": "f1dff4f9dd9c96214f8cb78b982812459132df8a4ad1a42409fd94de4a366244"
+    }
+  },
   "ollama": {
     "model": "qwen3.5:4b",
     "tested_digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"

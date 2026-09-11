@@ -31,6 +31,11 @@ Resolve later corrections; do not list superseded deadlines/tasks or questions a
 Preserve conditions and dependencies. Named nonparticipants can own explicitly assigned tasks.
 Unstated owner/deadline = null, unstated priority = unspecified. Never calculate dates.
 Do not invent speakers' names. Cite the original source separately for each populated action field.
+Speaker labels identify voices, not real names. For a first-person commitment ("I'll send it"),
+use that segment's known speaker_id, assignee=null, and quote the commitment in evidence.assignee.
+For named assignments ("Alex will send it"), use assignee="Alex", speaker_id=null even if the
+statement has a speaker label. Never treat the person mentioning Alex as Alex.
+Unknown or mixed-speaker segments cannot establish a speaker_id. Never put "Speaker 1" in assignee.
 If nothing supports an item, return an empty array. Do not invent tasks to fill a table.
 An unresolved choice is ONLY an open question, never a task without a commitment to act.
 Example: "We haven't chosen a provider" => open question; action_items: [].

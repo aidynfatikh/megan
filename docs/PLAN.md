@@ -2,7 +2,7 @@
 
 Updated 2026-09-11 after reviewing the case and initial plan. See [ANALYSIS.md](ANALYSIS.md) for the requirement analysis, technical findings, and decision rationale.
 
-**Status: core implementation locally validated; RTX acceptance pending.** The two-model app, PostgreSQL persistence, review UI, exports, and tests are implemented. See [README.md](../README.md) for launch instructions and [VERIFICATION.md](VERIFICATION.md) for measured results and remaining target-machine checks. Optional tiers below remain design options, not claims of implemented features.
+**Status: core implementation locally validated; optional Sortformer integrated; RTX acceptance pending.** PostgreSQL persistence, review UI, exports, chat, and optional speaker separation are implemented. See [README.md](../README.md) for launch instructions, [DIARIZATION.md](DIARIZATION.md) for the third-model profiles, and [VERIFICATION.md](VERIFICATION.md) for measured results. Unimplemented optional tiers below remain design options.
 
 ## 1. Outcome and constraints
 
@@ -27,7 +27,7 @@ The [brief](TZ_AI_Meeting_Intelligence.pdf) assigns 70 points to mandatory funct
 | Stage | Model | Required? | Execution |
 |---|---|---|---|
 | Transcribe | One multilingual Whisper checkpoint; initially large-v3-turbo if target tests pass | Yes | After decoding |
-| Separate speakers | One diarizer: Community-1 or a preserved, working Sortformer | Bonus | After releasing ASR resources |
+| Separate speakers | Sortformer v2: NeMo on RTX or NeMo-Speech.cpp on Mac | Optional, implemented | After releasing ASR resources |
 | Produce report | One Qwen through local Ollama; evaluate `qwen3.5:4b` first | Yes | After releasing audio-model resources |
 | Answer questions | Reuse the same Qwen | Bonus | On demand, through the same scheduler |
 | Dense retrieval | Optional multilingual-e5-small on CPU | Deferred | Only if keyword retrieval is inadequate |
@@ -224,7 +224,7 @@ For silent/unintelligible input, show no usable speech and empty substantive con
 
 ### Speakers
 
-After P0, add one backend. Prefer preserved working Sortformer code if it is actually available; otherwise time-box Community-1 setup. Community-1 allows flexible speaker counts and local loading; [Sortformer v2](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2) has a four-speaker ceiling. Choose using integration cost and local results.
+Implemented after P0: [Sortformer v2](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2), with a four-speaker ceiling. The NeMo child adapts Fatikh's supplied script; the C++ adapter permits local Metal inference on the Mac. Community-1 is not included. Both profiles are optional and use only explicit local model paths; see [DIARIZATION.md](DIARIZATION.md).
 
 Map transcript spans to diarized intervals; retain unknown attribution for overlap, gaps, and weak matches. Start with anonymous labels. A diarization failure produces a report with a visible attribution limitation, not failure of the mandatory flow. Record the backend used and its limitation.
 
@@ -363,7 +363,7 @@ The hackathon build is complete when mandatory functionality, enabled bonuses, o
 
 ## 14. Historical assets to verify
 
-The initial plan named these resources on the teammate's prior Linux setup. They are absent from this Mac workspace and were not inspected during this review:
+The initial plan named these resources on the teammate's prior Linux setup. Those absolute Linux paths remain unverified here. Copies of `diarize_local.py`, `concat_speakers.py`, and `transcribe_local.py` were subsequently supplied in `fatikh-files/` and inspected; the optional NeMo adapter follows the supplied diarizer's model loading and streaming configuration:
 
 - `/home/fatikh/models/diar_streaming_sortformer_4spk-v2.nemo`
 - `/home/fatikh/ML/ML` with reportedly working NeMo/PyTorch

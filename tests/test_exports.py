@@ -58,3 +58,16 @@ def test_ics_uses_tasks_with_due_dates_without_inventing_meeting_times():
     assert "UID:job-1-A1@megan.local" in text
     assert "DTSTART" not in text
     assert text.count("BEGIN:VTODO") == 1
+
+
+def test_exports_preserve_anonymous_speaker_owners_shown_in_the_ui():
+    from backend.schemas import Speaker
+
+    value = report()
+    value.action_items[0].speaker_id = "speaker_0"
+    speakers = [Speaker(id="speaker_0", name="Speaker 1")]
+    rows = list(csv.DictReader(io.StringIO(export_csv(value, speakers).decode("utf-8-sig"))))
+    assert rows[0]["assignee"] == "Speaker 1"
+    assert rows[0]["speaker_id"] == "speaker_0"
+    content, _ = export_ics(value, "job-1", speakers)
+    assert "Owner: Speaker 1" in content.decode()

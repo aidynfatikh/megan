@@ -158,3 +158,37 @@ async def test_examples_are_explicitly_labeled_and_do_not_use_real_uploads(api):
     assert result.status_code == 200
     assert result.json()["provenance"]["sample"] is True
     assert (await client.get("/api/jobs")).json() == []
+
+
+async def test_speaker_rename_persists_exports_and_preserves_named_nonparticipants(api, repository):
+    from uuid import UUID
+
+    from backend.schemas import Speaker
+
+    client, app = api
+    job_id = await upload_and_wait(client, app)
+    job = await repository.get(UUID(job_id))
+    job.speakers = [Speaker(id="speaker_0", name="Speaker 1")]
+    job.segments[0].speaker_id = "speaker_0"
+    job.diarization_status = "done"
+    named = job.report.action_items[0]
+    anonymous = named.model_copy(
+        deep=True, update={"id": "A2", "assignee": None, "speaker_id": "speaker_0"}
+    )
+    job.report.action_items.append(anonymous)
+    await repository.save(job)
+    path = f"/api/jobs/{job_id}/speakers/speaker_0"
+    response = await client.patch(path, json={"revision": 1, "name": "Mira"})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["report_revision"] == 2
+    assert result["speakers"][0]["name_source"] == "user_edit"
+    assert result["segments"][0]["speaker_id"] == "speaker_0"
+    assert result["report"]["action_items"][0]["assignee"] == "Dana"
+    assert result["report"]["action_items"][1]["assignee"] == "Mira"
+    saved = await repository.get(UUID(job_id))
+    assert saved.diarization_status == "done"
+    assert saved.speakers[0].name == "Mira"
+    assert (await client.patch(path, json={"revision": 1, "name": "Stale"})).status_code == 409
+    exported = await client.get(f"/api/jobs/{job_id}/export?format=csv")
+    assert "Mira" in exported.text and "Dana" in exported.text

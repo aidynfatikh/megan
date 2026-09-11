@@ -70,6 +70,7 @@
       "name_source": "anonymous"
     }
   ],
+  "diarization_status": "disabled",
   "report": {
     "title": "Website launch sync",
     "summary": [
@@ -405,6 +406,9 @@
     "llm": "none",
     "llm_digest": null,
     "diarization_backend": "none",
+    "diarization_model": null,
+    "diarization_model_sha256": null,
+    "diarization_runtime": null,
     "sample": true
   }
 }

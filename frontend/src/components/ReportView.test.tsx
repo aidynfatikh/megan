@@ -56,3 +56,14 @@ test("unknown owner, deadline and priority have honest labels", () => {
   expect(screen.getByText("No deadline stated")).toBeInTheDocument();
   expect(screen.getAllByText("Not specified").length).toBeGreaterThan(0);
 });
+
+test("an anonymous self-assignment shows the linked speaker instead of unassigned", () => {
+  const job = structuredClone(example);
+  job.speakers[0].name = "Speaker 1";
+  const action = job.report!.action_items[0];
+  action.assignee = null;
+  action.speaker_id = job.speakers[0].id;
+  render(<ReportView job={job} onSource={vi.fn()} onEdit={vi.fn()} />);
+  expect(screen.getByText("Speaker 1")).toBeInTheDocument();
+  expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
+});

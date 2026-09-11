@@ -37,6 +37,7 @@ backend = ["migrations/*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 markers = ["integration: requires a local PostgreSQL test database", "models: requires actual local model weights"]
 

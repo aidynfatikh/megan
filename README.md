@@ -2,7 +2,7 @@
 
 A local meeting workspace: upload MP3, WAV, or M4A; review a transcript, summary, decisions, topics, open questions, and action items; follow timestamped sources; edit tasks; export JSON, CSV, or task deadlines as ICS.
 
-**Two models, processed sequentially:** multilingual Whisper → Qwen through Ollama. PostgreSQL stores jobs and report revisions. Files stay in `data/`; models stay in `models/`. No hosted inference, cloud database, analytics, or CDN assets are required at runtime.
+**Two models by default:** multilingual Whisper → Qwen through Ollama. Optional Sortformer adds speaker separation: Whisper → Sortformer → Qwen, still one model at a time. PostgreSQL stores jobs and report revisions. Files stay in `data/`; models stay in `models/`. No hosted inference, cloud database, analytics, or CDN assets are required at runtime.
 
 The demo target is **Fatikh's RTX 4060 laptop**. Development uses the M5 Mac with a different Whisper runtime. GPU compatibility and demo speed must be measured on Fatikh's machine. See [verification evidence](docs/VERIFICATION.md) and the [case analysis](docs/ANALYSIS.md).
 
@@ -91,6 +91,8 @@ For UI development, run `npm run dev` inside `frontend` alongside the API; Vite 
 
 ## Test a real recording
 
+For speaker labels and renaming, follow [optional Sortformer setup](docs/DIARIZATION.md). It supports Fatikh's separate NeMo environment and a pinned C++/Metal runtime on the Mac. Fresh installs default to `DIARIZATION_BACKEND=none`.
+
 Use the browser or CLI. Meeting date is optional; leaving it blank leaves relative deadlines unresolved. Report language can be `ru`, `kk`, or `en`; evidence quotes retain their original language.
 
 ```bash
@@ -141,4 +143,4 @@ On failure, open **System status**, inspect terminal logs, and fix the missing s
 
 “Source linked” means exact text was located in the transcript, not that the claim was semantically or acoustically verified. Unknown owner/priority/date values stay unknown. An owner or deadline citation recovered from exact words in a task quotation is visibly marked for review. Ambiguous weekday/year wording is not guessed. The example report is explicitly illustrative and has no recorded audio.
 
-Speaker diarization, automatic naming, dense embeddings, specialized Kazakh re-decoding, PDF output, and long-meeting chunking are deferred. This release provides two-model transcription/reporting, task edits, JSON/CSV/ICS, and cited keyword-based meeting chat.
+Automatic speaker naming, dense embeddings, specialized Kazakh re-decoding, PDF output, and long-meeting chunking are deferred. This release provides transcription/reporting, optional Sortformer speaker labels with manual renaming, task edits, JSON/CSV/ICS, and cited keyword-based meeting chat.

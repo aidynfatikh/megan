@@ -8,6 +8,7 @@ from backend.config import Settings
 from backend.db import BusyError, Repository
 from backend.pipeline.asr import transcribe
 from backend.pipeline.audio import AudioError, normalize_audio
+from backend.pipeline.diarize import align_speakers, diarize
 from backend.pipeline.structure import ExtractionError, Ollama
 from backend.pipeline.validate import ground_report
 from backend.schemas import Job, JobError, Report
@@ -22,6 +23,13 @@ class Pipeline:
 
     async def run(self, job: Job, directory: Path, checkpoint):
         wav = directory / "normalized.wav"
+        if self.settings.diarization_backend == "none" and job.diarization_status != "done":
+            job.diarization_status = "disabled"
+            job.provenance.diarization_backend = "none"
+            job.provenance.diarization_model = None
+            job.provenance.diarization_model_sha256 = None
+            job.provenance.diarization_runtime = None
+            job.warnings = [w for w in job.warnings if not w.startswith("Speaker separation")]
         if not job.segments:
             await checkpoint("decode")
             source = directory / f"original{Path(job.filename).suffix.lower()}"
@@ -33,6 +41,7 @@ class Pipeline:
             )
             job.duration_sec = audio.duration
             if audio.silent:
+                job.diarization_status = "disabled"
                 return Report(title="No usable speech", content_status="no_usable_speech")
             await checkpoint("release_models")
             await self.ollama.unload()
@@ -48,7 +57,42 @@ class Pipeline:
                 segment.start = min(segment.start, segment.end)
             await checkpoint("transcript_ready")
         if not job.segments:
+            job.diarization_status = "disabled"
             return Report(title="No usable speech", content_status="no_usable_speech")
+        if self.settings.diarization_backend != "none" and job.diarization_status != "done":
+            job.diarization_status = "running"
+            job.provenance.diarization_backend = self.settings.diarization_backend
+            job.provenance.diarization_model = self.settings.diarization_model_path.name
+            job.provenance.diarization_model_sha256 = None
+            job.provenance.diarization_runtime = None
+            # Also unload before a transcript-only retry, which can follow a chat request.
+            # Failure to unload is fatal: starting another GPU model would be unsafe.
+            await checkpoint("release_models")
+            await self.ollama.unload()
+            await checkpoint("diarize")
+            job.warnings = [w for w in job.warnings if not w.startswith("Speaker separation")]
+            try:
+                result = await diarize(self.settings, wav, directory, job.duration_sec or 0)
+                job.segments, job.speakers = align_speakers(job.segments, result.turns)
+                job.provenance.diarization_model_sha256 = result.model_sha256
+                job.provenance.diarization_runtime = result.runtime
+                job.diarization_status = "done"
+                unknown = sum(s.speaker_id is None for s in job.segments)
+                job.warnings.append(
+                    "Speaker separation supports up to four voices; labels need review. "
+                    f"{unknown} of {len(job.segments)} transcript segments have unknown attribution."
+                )
+            except Exception:
+                logger.exception("Optional speaker separation failed for %s", job.id)
+                job.diarization_status = "failed"
+                job.speakers = []
+                for segment in job.segments:
+                    segment.speaker_id = None
+                job.warnings.append(
+                    "Speaker separation failed. The report continues with unknown speakers. "
+                    "Check the local Sortformer setup and runtime logs."
+                )
+            await checkpoint("speakers_ready")
         await checkpoint("analyze")
         job.provenance.llm = self.settings.ollama_model
         selected = next(

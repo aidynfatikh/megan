@@ -18,6 +18,7 @@ export type Health = {
   asr_model: string;
   llm: string;
   diarization: string;
+  diarization_ready: boolean;
   chat_enabled: boolean;
   max_upload_mb: number;
   max_duration_sec: number;

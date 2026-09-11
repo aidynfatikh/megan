@@ -74,6 +74,61 @@ async def test_truncation_is_retried_once_then_fails(respx_mock):
     assert route.call_count == 2
 
 
+async def test_extraction_is_given_the_context_the_prompt_leaves_free(respx_mock):
+    # A fixed allowance truncated long-but-fitting transcripts; the configured value is a floor.
+    route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
+        return_value=httpx.Response(
+            200, json={"done": True, "message": {"content": json.dumps(EMPTY)}}
+        )
+    )
+    settings = Settings(_env_file=None)
+    client = Ollama(settings)
+    await client.extract([Segment(id="S1", start=0, end=1, text="Hi")], "en")
+
+    predict = json.loads(route.calls[0].request.content)["options"]["num_predict"]
+    assert predict > settings.llm_output_tokens
+    # Prompt plus answer still has to fit the tested context.
+    prompt = client.last_metrics["prompt_token_budget"]
+    assert prompt + predict <= settings.llm_context
+
+
+async def test_repair_asks_for_a_shorter_report_not_only_shorter_quotes(respx_mock):
+    route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
+        side_effect=[
+            httpx.Response(
+                200, json={"done": True, "done_reason": "length", "message": {"content": "{"}}
+            ),
+            httpx.Response(200, json={"done": True, "message": {"content": json.dumps(EMPTY)}}),
+        ]
+    )
+    await Ollama(Settings(_env_file=None)).extract(
+        [Segment(id="S1", start=0, end=1, text="Hi")], "en"
+    )
+    repair = json.loads(route.calls[1].request.content)["messages"][-1]["content"]
+    assert "fewer topics" in repair
+    assert "action_items" in repair
+    assert "cut off" in repair
+
+
+async def test_repair_is_told_which_schema_rule_the_attempt_broke(respx_mock):
+    # A generic complaint made the retry repeat the same mistake; name the failed rule instead.
+    too_many = {**EMPTY, "summary": [{"text": "s", "evidence": []} for _ in range(11)]}
+    route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
+        side_effect=[
+            httpx.Response(200, json={"done": True, "message": {"content": json.dumps(too_many)}}),
+            httpx.Response(200, json={"done": True, "message": {"content": json.dumps(EMPTY)}}),
+        ]
+    )
+    result = await Ollama(Settings(_env_file=None)).extract(
+        [Segment(id="S1", start=0, end=1, text="Hi")], "en"
+    )
+
+    assert result.title == "Discussion"
+    repair = json.loads(route.calls[1].request.content)["messages"][-1]["content"]
+    assert "summary" in repair
+    assert "at most 5 items" in repair
+
+
 async def test_invalid_json_can_recover_with_one_repair(respx_mock):
     route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
         side_effect=[

@@ -20,8 +20,13 @@ discussing or agreeing when a speaker is explaining a subject.
 Read the ENTIRE discussion, including later corrections, before writing the JSON.
 Write a grounded overview, then resolve final decisions and outstanding action items.
 For every item, copy its source evidence FIRST, then write only the conclusion it supports.
-summary: 3 concise supported sentences (up to 5 if needed; objects with text and evidence). Never add filler.
-topics: objects with title and theses (same text/evidence objects).
+summary: 3 concise supported sentences (objects with text and evidence). Never add filler.
+NEVER write more than 5 summary items, however long the recording is; a longer recording
+gets a denser summary, not a longer list.
+topics: objects with title and theses (same text/evidence objects). At most 6 topics,
+each with at most 4 theses. Group related points under one topic instead of writing a
+thesis per remark; the report must reach decisions and action_items, so never spend the
+response on an exhaustive retelling of the transcript.
 open_questions, risks: arrays of text/evidence objects. decisions also have a status:
 confirmed (explicit final agreement), tentative, reported_fact, rejected, or superseded.
 An implementation update is a reported_fact, not a new decision. Pending confirmation is tentative.
@@ -146,6 +151,24 @@ def extraction_messages(segments: list[Segment], language: str):
     ]
 
 
+def repair_reason(exc: Exception) -> str:
+    """Name the rejected attempt's actual defect so the repair turn can correct THAT.
+
+    Repeating a generic "too long" complaint made the second attempt fail the same check: a
+    long transcript reliably produced more summary items than the schema allows, and nothing
+    in the retry said so. Only the model's own output is quoted back, never the transcript.
+    """
+    if isinstance(exc, ValidationError):
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in error['loc']) or 'report'}: {error['msg']}"
+            for error in exc.errors()[:3]
+        )
+        return f"it broke the schema ({problems})."
+    if isinstance(exc, ValueError) and "Incomplete" in str(exc):
+        return "it was cut off before the JSON ended, so it was too long."
+    return "it was not valid JSON in the required schema."
+
+
 class Ollama:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -227,13 +250,19 @@ class Ollama:
             trust_env=False,
             follow_redirects=False,
         ) as client:
+            reason = ""
             for attempt in range(retries + 1):
                 request_messages = list(messages)
                 if attempt:
                     request_messages.append(
                         {
                             "role": "user",
-                            "content": "The last response was incomplete or invalid. Return one complete compact JSON object in the required schema. Keep quotations short.",
+                            "content": "The last response was rejected: "
+                            + reason
+                            + " Return one complete compact JSON object in the required schema. "
+                            "Respect every stated limit, write fewer topics and fewer theses per "
+                            "topic, keep quotations short, and make sure decisions and "
+                            "action_items are present.",
                         }
                     )
                 try:
@@ -279,23 +308,28 @@ class Ollama:
                         messages, self.settings
                     )
                     return result
-                except (ValueError, KeyError, ValidationError):
+                except (ValueError, KeyError, ValidationError) as exc:
                     if attempt == retries:
                         raise ExtractionError(
                             "The model could not return a complete, valid report after one repair."
                         ) from None
+                    reason = repair_reason(exc)
 
     async def extract(self, segments: list[Segment], language: str) -> DraftReport:
-        return await self.generate(extraction_messages(segments, language), DraftReport)
+        messages = extraction_messages(segments, language)
+        return await self.generate(messages, DraftReport, output_tokens=self.output_room(messages))
 
-    def merge_room(self, messages) -> int:
-        """Output allowance for a merge: everything the prompt leaves behind.
+    def output_room(self, messages) -> int:
+        """Output allowance: the configured floor, or the whole context the prompt leaves free.
 
-        Merging reproduces the items it was given, so its output is roughly the size of its
-        input. Reserving only the ordinary report allowance truncated the result and failed the
-        completeness check, so the remaining context is handed to generation instead.
+        A report grows with the recording, so a fixed allowance truncates a long transcript that
+        still fits the prompt budget: a 36-minute transcript needed 24K prompt tokens and then ran
+        out of the 3500 reserved for the answer. The configured value is therefore a minimum that
+        chunk planning reserves, and generation is handed whatever the prompt actually leaves.
+        Merging needs the same room, because it re-emits the items it was given.
         """
-        return self.settings.llm_context - prompt_tokens(messages, self.settings) - 256
+        free = self.settings.llm_context - prompt_tokens(messages, self.settings) - 256
+        return max(self.settings.llm_output_tokens, free, 256)
 
     def merge_error(self, messages) -> str | None:
         # Require room to re-emit at least as much as was supplied.
@@ -303,9 +337,7 @@ class Ollama:
 
     async def merge(self, drafts: list[DraftReport], language: str) -> DraftReport:
         messages = reduce_messages(drafts, language)
-        return await self.generate(
-            messages, DraftReport, output_tokens=max(self.merge_room(messages), 256)
-        )
+        return await self.generate(messages, DraftReport, output_tokens=self.output_room(messages))
 
     async def extract_long(self, chunks: list[list[Segment]], language: str) -> DraftReport:
         """Extract each part with the ordinary prompt, then merge chronologically.

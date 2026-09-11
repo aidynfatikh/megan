@@ -123,3 +123,19 @@ def test_action_evidence_requires_known_field_names():
                 "evidence": {"task": [], "assignee": [], "due_raw": [], "priority": []},
             }
         )
+
+
+async def test_russian_transcript_of_a_realistic_meeting_fits_the_context(respx_mock):
+    """Byte-counting rejected Russian meetings at roughly a quarter of the usable context."""
+    route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
+        return_value=httpx.Response(
+            200,
+            json={"done": True, "done_reason": "stop", "message": {"content": json.dumps(EMPTY)}},
+        )
+    )
+    line = "Мы обсудили бюджет проекта и решили перенести срок поставки оборудования"
+    segments = [
+        Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 101)
+    ]
+    await Ollama(Settings(_env_file=None)).extract(segments, "ru")
+    assert route.called

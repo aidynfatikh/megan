@@ -96,7 +96,8 @@ export default function Workspace({ route }: { route: string }) {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [asking, setAsking] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
-  const sourcePanel = useRef<HTMLElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const clipEnd = useRef<number | null>(null);
   const pollingFailure = useRef(false);
   const running =
     !!job &&
@@ -286,6 +287,9 @@ export default function Workspace({ route }: { route: string }) {
   }, [mobileMenu]);
 
   function selectJob(next: Job | null) {
+    audio.current?.pause();
+    clipEnd.current = null;
+    setPlaying(false);
     setJob(next);
     setSource(null);
     setEditing(null);
@@ -298,28 +302,54 @@ export default function Workspace({ route }: { route: string }) {
   }
 
   function closeSource() {
-    setSource(null);
-    // The panel starts playback at the quotation, so closing it also stops that playback.
     audio.current?.pause();
+    clipEnd.current = null;
+    setSource(null);
   }
 
   function viewSource(next: Source) {
+    audio.current?.pause();
+    clipEnd.current = null;
     setSource(next);
     if (audio.current && next.start != null && !sample) {
       audio.current.currentTime = next.start;
-      void audio.current
-        .play()
-        .catch(() => setError("Press play to listen to the selected source."));
     }
-    requestAnimationFrame(() =>
-      sourcePanel.current?.scrollIntoView({
-        block: "nearest",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-      }),
-    );
   }
+
+  function toggleSourceAudio() {
+    const player = audio.current;
+    if (!player || !source) return;
+    if (!player.paused) {
+      player.pause();
+      return;
+    }
+    if (
+      player.currentTime < (source.start ?? 0) ||
+      (source.end != null && player.currentTime >= source.end)
+    ) {
+      player.currentTime = source.start ?? 0;
+    }
+    clipEnd.current = source.end ?? null;
+    void player
+      .play()
+      .catch(() => setError("Audio could not play. Try again."));
+  }
+
+  useEffect(() => {
+    const player = audio.current;
+    return () => {
+      player?.pause();
+    };
+  }, [job?.id, route]);
+
+  useEffect(() => {
+    if (!source) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeSource();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [source]);
 
   function openExample() {
     goTo("/example");
@@ -709,9 +739,21 @@ export default function Workspace({ route }: { route: string }) {
                     preload="metadata"
                     aria-label="Meeting audio player"
                     src={`/api/jobs/${job.id}/audio`}
-                    onTimeUpdate={() =>
-                      setCurrentTime(audio.current?.currentTime ?? 0)
-                    }
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                    onEnded={() => setPlaying(false)}
+                    onTimeUpdate={() => {
+                      const player = audio.current;
+                      setCurrentTime(player?.currentTime ?? 0);
+                      if (
+                        player &&
+                        clipEnd.current != null &&
+                        player.currentTime >= clipEnd.current
+                      ) {
+                        player.pause();
+                        clipEnd.current = null;
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -754,7 +796,10 @@ export default function Workspace({ route }: { route: string }) {
                 </section>
               )}
               {job.warnings
-                .filter((warning) => !warning.startsWith("Speaker separation supports"))
+                .filter(
+                  (warning) =>
+                    !warning.startsWith("Speaker separation supports"),
+                )
                 .map((warning, i) => (
                   <div className="notice" key={i}>
                     <AlertCircle size={16} />
@@ -800,7 +845,10 @@ export default function Workspace({ route }: { route: string }) {
                       )}
                     </div>
                     {source && (
-                      <aside className="source-panel panel" ref={sourcePanel}>
+                      <aside
+                        className="source-panel panel"
+                        aria-label="Selected source"
+                      >
                         <div className="section-heading">
                           <span className="eyebrow">SOURCE</span>
                           <button
@@ -816,6 +864,14 @@ export default function Workspace({ route }: { route: string }) {
                           {timestamp(source.start)}
                           <span>— {timestamp(source.end)}</span>
                         </div>
+                        {!sample && (
+                          <button
+                            className="button secondary"
+                            onClick={toggleSourceAudio}
+                          >
+                            {playing ? "Pause audio" : "Play passage"}
+                          </button>
+                        )}
                         <blockquote>{source.quote}</blockquote>
                         <p className="muted">
                           {sample

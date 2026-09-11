@@ -57,6 +57,8 @@ beforeEach(() => {
     configured: false,
     destination: null,
   });
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
   window.scrollTo = vi.fn();
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   Element.prototype.scrollIntoView = vi.fn();
@@ -428,4 +430,23 @@ test("the mobile drawer still closes with Escape when the desktop rail is collap
   ).not.toBeInTheDocument();
   expect(document.querySelector(".main-shell")).not.toHaveAttribute("inert");
   expect(trigger).toHaveFocus();
+});
+
+test("citations require explicit playback and closing stops audio without scrolling", async () => {
+  const user = start("#/meetings/ready-meeting");
+  const sources = await screen.findAllByRole("button", {
+    name: /View source S2/,
+  });
+  await user.click(sources[0]);
+  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Play passage" }));
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+  const pause = vi.mocked(HTMLMediaElement.prototype.pause);
+  pause.mockClear();
+  await user.click(screen.getByRole("button", { name: "Close source" }));
+  expect(pause).toHaveBeenCalledOnce();
+  expect(
+    screen.queryByRole("complementary", { name: "Selected source" }),
+  ).not.toBeInTheDocument();
 });

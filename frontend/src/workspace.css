@@ -451,18 +451,19 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
-.review-layout.with-source {
-  grid-template-columns: minmax(0, 1fr) 265px;
-}
-.review-layout.with-source .two-panels,
-.review-layout.with-source .topics-grid {
-  grid-template-columns: 1fr;
-}
 .source-panel {
-  align-self: start;
-  position: sticky;
-  top: 20px;
+  position: fixed;
+  z-index: 60;
+  right: 24px;
+  bottom: 24px;
+  width: min(390px, calc(100vw - 32px));
+  max-height: min(440px, 65dvh);
+  overflow-y: auto;
   padding: 18px;
+  box-shadow: 0 12px 48px #24301930;
+}
+.source-panel .button {
+  margin-bottom: 16px;
 }
 .source-panel .eyebrow {
   font-size: 8px;
@@ -774,8 +775,8 @@
     grid-template-columns: 1fr;
   }
   .source-panel {
-    position: static;
-    grid-row: 1;
+    right: 16px;
+    bottom: 16px;
   }
   .sidebar {
     width: 180px;
@@ -1122,5 +1123,17 @@
 .chat-options label {
   min-width: 160px;
 }
-.spoken-language { display: grid; gap: 6px; font-size: 12px; max-width: 280px; }
-.spoken-language select { padding: 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface, white); color: inherit; font: inherit; }
+.spoken-language {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  max-width: 280px;
+}
+.spoken-language select {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface, white);
+  color: inherit;
+  font: inherit;
+}

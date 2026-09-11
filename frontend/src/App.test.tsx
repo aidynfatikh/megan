@@ -51,7 +51,7 @@ test("landing source interaction explains evidence and opens the real workspace"
   const user = start();
   expect(
     screen.getByRole("heading", {
-      name: "A conversation. A clear way forward.",
+      name: "Your meetings, summarized.",
     }),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "12:42 View source" }));
@@ -59,8 +59,11 @@ test("landing source interaction explains evidence and opens the real workspace"
     screen.getByText("Illustrative transcript · no audio"),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("link", { name: "Open workspace" }));
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
   expect(
-    await screen.findByRole("heading", { name: "A little more clarity." }),
+    await screen.findByRole("heading", { name: "Meetings" }),
   ).toBeInTheDocument();
   expect(
     await screen.findByRole("link", { name: /planning.wav/ }),
@@ -85,11 +88,11 @@ test("meeting filters, searches, and cross-meeting actions use actual API data",
     screen.getByRole("textbox", { name: "Search meetings" }),
     "no-such-meeting",
   );
-  expect(screen.getByText("No matches just yet.")).toBeInTheDocument();
+  expect(screen.getByText("No matches found.")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
   await user.click(screen.getByRole("button", { name: /Action items/ }));
   expect(
-    await screen.findByRole("heading", { name: "A clear next step." }),
+    await screen.findByRole("heading", { name: "Action items" }),
   ).toBeInTheDocument();
   expect(
     screen.getByText(sample.report!.action_items[0].task),
@@ -120,13 +123,11 @@ test("a late meeting response cannot replace the dashboard after navigation", as
   const user = start("#/meetings/slow");
   await screen.findByText("Opening your meeting…");
   await user.click(screen.getByRole("button", { name: /All meetings/ }));
-  await screen.findByRole("heading", { name: "A little more clarity." });
+  await screen.findByRole("heading", { name: "Meetings" });
   await act(async () => {
     resolve!(ready);
   });
-  expect(
-    screen.getByRole("heading", { name: "A little more clarity." }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Meetings" })).toBeInTheDocument();
 });
 
 test("meeting chat explains a busy service and submits once it is available", async () => {

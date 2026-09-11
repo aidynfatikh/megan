@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => {
     document.title = route.startsWith("/")
       ? "Your workspace · Megan"
-      : "Megan — A conversation. A clear way forward.";
+      : "Megan — Meeting notes and action items";
   }, [route]);
   return route.startsWith("/") ? (
     <Suspense

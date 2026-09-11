@@ -5,7 +5,6 @@ import {
   AudioLines,
   FileAudio,
   Mic,
-  ShieldCheck,
   Upload,
   X,
 } from "lucide-react";
@@ -57,9 +56,7 @@ export function UploadView({
         <ArrowLeft size={14} /> All meetings
       </a>
       <div className="capture-heading">
-        <span className="eyebrow">A CONVERSATION WORTH KEEPING</span>
-        <h1>Let’s get the important bits.</h1>
-        <p>A recording, a little local AI, and a clear way forward.</p>
+        <h1>New meeting</h1>
       </div>
       <div className="capture-layout">
         <form
@@ -260,47 +257,9 @@ export function UploadView({
             )}
           </div>
         </form>
-        <aside className="capture-guide">
-          <span className="eyebrow">WHAT YOU’LL GET</span>
-          <h2>
-            The conversation.
-            <br />
-            With a little clarity.
-          </h2>
-          {[
-            [
-              "01",
-              "The big picture",
-              "A concise summary, decisions, and the questions still open.",
-            ],
-            [
-              "02",
-              "A clear next step",
-              "Action items with owners and deadlines, when they were stated.",
-            ],
-            [
-              "03",
-              "A way to check",
-              "Timestamped sources. Listen, review, and edit before you follow up.",
-            ],
-          ].map(([number, title, text]) => (
-            <div className="guide-step" key={number}>
-              <span>{number}</span>
-              <div>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </div>
-            </div>
-          ))}
-          <div className="guide-private">
-            <ShieldCheck size={22} />
-            <strong>Just here. Just yours.</strong>
-            <p>Audio and AI processing stay on the machine running Megan.</p>
-          </div>
-        </aside>
       </div>
       <button className="example-button" onClick={onExample}>
-        Take a look around <span>Open an example report</span>
+        View sample report
         <ArrowRight size={16} />
       </button>
     </div>

@@ -2,15 +2,11 @@ import { useState } from "react";
 import {
   ArrowDownUp,
   ArrowRight,
-  ArrowUpRight,
   AudioLines,
-  CalendarDays,
-  CheckCheck,
   ChevronRight,
   FileText,
   ListTodo,
   Mic,
-  Plus,
   Search,
   Upload,
 } from "lucide-react";
@@ -76,108 +72,23 @@ export function Dashboard({
   return (
     <div className="dashboard panel-enter">
       <div className="dashboard-heading">
-        <div>
-          <span className="eyebrow">YOUR PRIVATE MEETING WORKSPACE</span>
-          <h1>
-            {actionsOnly ? "A clear next step." : "A little more clarity."}
-          </h1>
-          <p>
-            {actionsOnly
-              ? "The commitments from your conversations, together in one place."
-              : "Your conversations, collected. Your next steps, a little clearer."}
-          </p>
-        </div>
-        <span className="today-label">
-          <CalendarDays size={15} />
-          {new Date().toLocaleDateString("en-GB", {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-          })}
-        </span>
+        <h1>{actionsOnly ? "Action items" : "Meetings"}</h1>
+        {!actionsOnly && (
+          <div className="start-actions">
+            <a className="primary-button" href="#/new/record">
+              <Mic size={17} /> Record a meeting
+            </a>
+            <a className="secondary-button" href="#/new/upload">
+              <Upload size={16} /> Upload audio
+            </a>
+          </div>
+        )}
       </div>
-      {!actionsOnly && (
-        <>
-          <div className="dashboard-start">
-            <div className="start-copy">
-              <span className="eyebrow">
-                GIVE YOUR NEXT MEETING A LITTLE SPACE
-              </span>
-              <h2>
-                Be present.
-                <br />
-                We’ll keep the important bits.
-              </h2>
-              <div className="start-actions">
-                <a className="primary-button" href="#/new/record">
-                  <Mic size={17} /> Record a meeting <ArrowUpRight size={16} />
-                </a>
-                <a className="secondary-button" href="#/new/upload">
-                  <Upload size={16} /> Upload audio
-                </a>
-              </div>
-              <span className="capture-note">
-                Microphone recording or MP3, WAV, M4A
-              </span>
-            </div>
-            <div className="desk-illustration" aria-hidden="true">
-              <div className="desk-note">
-                <span>AFTER THE CONVERSATION</span>
-                <strong>
-                  A plan worth
-                  <br />
-                  coming back to.
-                </strong>
-                <p>
-                  <CheckCheck size={15} /> Decisions, remembered.
-                </p>
-                <p>
-                  <ListTodo size={15} /> Next steps, made clear.
-                </p>
-                <p>
-                  <AudioLines size={15} /> The source, always there.
-                </p>
-              </div>
-              <div className="desk-sticker">
-                a clear
-                <br />
-                <em>way forward</em>
-                <ArrowUpRight size={25} />
-              </div>
-            </div>
-          </div>
-          <div className="workspace-stats">
-            <div>
-              <FileText size={18} />
-              <strong>{history.length}</strong>
-              <span>meetings in your space</span>
-            </div>
-            <div>
-              <CheckCheck size={18} />
-              <strong>{ready.length}</strong>
-              <span>ready to revisit</span>
-            </div>
-            <a href="#/actions">
-              <ListTodo size={18} />
-              <strong>{tasks.length}</strong>
-              <span>action items captured</span>
-              <ArrowUpRight size={14} />
-            </a>
-          </div>
-        </>
-      )}
       <section className="meeting-library" aria-labelledby="library-title">
-        <div className="library-heading">
-          <h2 id="library-title">
-            {actionsOnly ? "Your action items" : "Your meetings"}
-            <span>{actionsOnly ? tasks.length : history.length}</span>
-          </h2>
-          {!actionsOnly && (
-            <a href="#/new/upload" className="text-button">
-              <Plus size={15} /> Add a meeting
-            </a>
-          )}
-        </div>
+        <h2 id="library-title" className="sr-only">
+          {actionsOnly ? "Your action items" : "Your meetings"}
+          <span>{actionsOnly ? tasks.length : history.length}</span>
+        </h2>
         <div className="library-toolbar">
           {!actionsOnly && (
             <div
@@ -235,7 +146,7 @@ export function Dashboard({
             <span />
             <span />
             <span />
-            <p>Gathering your meetings…</p>
+            <p>Loading meetings…</p>
           </div>
         ) : actionsOnly ? (
           filteredTasks.length ? (
@@ -315,7 +226,7 @@ export function Dashboard({
           />
         )}
       </section>
-      {!actionsOnly && (
+      {!actionsOnly && history.length === 0 && !loading && (
         <button
           className="sample-invitation"
           onClick={() => navigate("/example")}
@@ -324,8 +235,8 @@ export function Dashboard({
             <FileText size={22} strokeWidth={1.5} />
           </span>
           <span>
-            <strong>A little curious? Take a look around.</strong>
-            <small>Explore an example report. No recording needed.</small>
+            <strong>View a sample report</strong>
+            <small>No recording needed.</small>
           </span>
           <span className="sample-cta">
             Open sample <ArrowRight size={15} />
@@ -364,17 +275,17 @@ function EmptyState({
       </span>
       <h3>
         {search
-          ? "No matches just yet."
+          ? "No matches found."
           : actions
-            ? "The next steps will land here."
-            : "Room for your first conversation."}
+            ? "No action items yet."
+            : "No meetings yet."}
       </h3>
       <p>
         {search
           ? "Try a different search or clear your filters."
           : actions
             ? "Create a meeting report to collect its action items here."
-            : "Record a meeting or bring an audio file. We’ll take it from there."}
+            : "Record or upload a meeting to create your first report."}
       </p>
       {search ? (
         <button className="text-button" onClick={onClear}>

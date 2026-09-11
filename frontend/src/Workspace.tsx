@@ -13,14 +13,12 @@ import {
   FolderOpen,
   HelpCircle,
   LoaderCircle,
-  LockKeyhole,
   MessageSquare,
   Plus,
   ListTodo,
   Menu,
   Send,
   Settings2,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { api, formatDate, timestamp } from "./api";
@@ -353,19 +351,10 @@ export default function Workspace({ route }: { route: string }) {
         <a className="brand" href="#" aria-label="Megan home">
           <Brand />
         </a>
-        <div className="workspace-switch">
-          <div className="workspace-avatar">M</div>
-          <div>
-            <strong>My workspace</strong>
-            <span>Local workspace</span>
-          </div>
-          <LockKeyhole size={13} />
-        </div>
         <button className="new-meeting" onClick={() => goTo("/new/record")}>
           <Plus size={17} />
-          New meeting<span>＋</span>
+          New meeting
         </button>
-        <div className="sidebar-label">WORKSPACE</div>
         <button
           className={`nav-item ${route !== "/actions" ? "active" : ""}`}
           onClick={() => goTo("/workspace")}
@@ -406,22 +395,11 @@ export default function Workspace({ route }: { route: string }) {
             ))
           ) : (
             <p className="history-empty">
-              {query
-                ? "No matching meetings."
-                : "Your conversations will find a home here."}
+              {query ? "No matching meetings." : "No meetings yet."}
             </p>
           )}
         </div>
         <div className="sidebar-bottom">
-          <div className="local-card">
-            <ShieldCheck size={19} />
-            <strong>Made to stay local</strong>
-            <p>
-              Your conversation.
-              <br />
-              Your device. Your control.
-            </p>
-          </div>
           <button
             className="nav-item"
             onClick={() => {
@@ -445,13 +423,6 @@ export default function Workspace({ route }: { route: string }) {
             System status
             <span className={`status-dot ${health?.ready ? "ready" : ""}`} />
           </button>
-          <div className="sidebar-profile">
-            <span className="avatar">Y</span>
-            <span>
-              Your workspace<small>On this device</small>
-            </span>
-            <span className="version">v0.1</span>
-          </div>
         </div>
       </aside>
 
@@ -547,7 +518,7 @@ export default function Workspace({ route }: { route: string }) {
           {helpOpen && (
             <section className="panel help-panel">
               <div className="section-heading">
-                <h2>From conversation to clarity</h2>
+                <h2>How it works</h2>
                 <button
                   className="icon-button section-meta"
                   aria-label="Close help"
@@ -614,7 +585,6 @@ export default function Workspace({ route }: { route: string }) {
               )}
               <div className="meeting-heading">
                 <div>
-                  <div className="eyebrow">MEETING NOTES</div>
                   <h1>{report?.title ?? job.filename}</h1>
                   <div className="meeting-meta">
                     <span>
@@ -698,10 +668,6 @@ export default function Workspace({ route }: { route: string }) {
                       setCurrentTime(audio.current?.currentTime ?? 0)
                     }
                   />
-                  <span className="recording-private">
-                    <LockKeyhole size={13} />
-                    On-device
-                  </span>
                 </div>
               )}
 
@@ -712,8 +678,7 @@ export default function Workspace({ route }: { route: string }) {
                     <div>
                       <h2>{stageLabels[job.stage] ?? job.stage}</h2>
                       <p>
-                        The models work one at a time. Your report will appear
-                        here.
+                        Your report will appear here when processing finishes.
                       </p>
                     </div>
                     <span className="elapsed">{timestamp(elapsed)}</span>
@@ -767,10 +732,6 @@ export default function Workspace({ route }: { route: string }) {
                       <AudioLines size={16} />
                       Transcript<span>{job.segments.length}</span>
                     </button>
-                    <div className="tab-note">
-                      <LockKeyhole size={12} />
-                      {sample ? "Illustrative preview" : "Saved on this device"}
-                    </div>
                   </div>
                   <div
                     className={`review-layout ${source ? "with-source" : ""}`}
@@ -804,7 +765,7 @@ export default function Workspace({ route }: { route: string }) {
                     {source && (
                       <aside className="source-panel panel" ref={sourcePanel}>
                         <div className="section-heading">
-                          <span className="eyebrow">BACK TO THE SOURCE</span>
+                          <span className="eyebrow">SOURCE</span>
                           <button
                             className="icon-button section-meta"
                             aria-label="Close source"
@@ -846,9 +807,6 @@ export default function Workspace({ route }: { route: string }) {
                         <MessageSquare size={18} />
                       </span>
                       <h2>Ask this meeting</h2>
-                      <span className="section-meta muted">
-                        Answers with sources
-                      </span>
                     </div>
                     <form
                       onSubmit={async (e) => {
@@ -923,16 +881,6 @@ export default function Workspace({ route }: { route: string }) {
             </>
           )}
         </main>
-        <footer className="page-footer">
-          <span>
-            megan<span className="brand-period">.</span>{" "}
-            <span className="muted">Less note-taking. More being there.</span>
-          </span>
-          <span>
-            <ShieldCheck size={13} />
-            Built for private conversations
-          </span>
-        </footer>
       </div>
       {editing && job && (
         <EditTask

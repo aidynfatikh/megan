@@ -114,7 +114,6 @@ export function ReportView({
             <Quote size={18} />
           </span>
           <h2>Executive summary</h2>
-          <span className="eyebrow section-meta">THE BIG PICTURE</span>
         </div>
         <div className="summary-content">
           {report.summary.length ? (
@@ -155,7 +154,6 @@ export function ReportView({
           </span>
           <h2>Action items</h2>
           <span className="count">{report.action_items.length}</span>
-          <span className="section-meta muted">Clear next steps</span>
         </div>
         {report.action_items.length ? (
           <div className="table-scroll">

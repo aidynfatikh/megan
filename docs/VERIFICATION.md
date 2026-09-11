@@ -144,3 +144,43 @@ Not covered by this pass: Sortformer on CUDA (`DIARIZATION_BACKEND` remained `no
 code-switched audio, peak VRAM under diarization, multi-speaker attribution on real meeting
 audio, repeated and concurrent runs, the browser UI, and a disconnected rehearsal. One excerpt
 from one recording is not a benchmark.
+
+### Sortformer on CUDA — first measurement (2026-09-11)
+
+Speaker separation was then enabled on the same machine with `DIARIZATION_BACKEND=sortformer_nemo`,
+`DIARIZATION_DEVICE=cuda`, and `DIARIZATION_PYTHON` pointing at the pre-existing NeMo environment
+(`nemo_toolkit 2.7.0`, `torch 2.11.0+cu129`). No download was required: the historical checkpoint
+at `/home/fatikh/models/diar_streaming_sortformer_4spk-v2.nemo` hashes to
+`b371afce2c4958186469df33d939936b9746c89f38b10a69cfd2c61254e83329`, **identical to the pinned
+manifest entry**. Preflight reported `diarization_ready: true`.
+
+The same 120 s Russian excerpt completed the three-model pipeline in **85.1 s**.
+
+| Stage | Two models | Three models |
+|---|---:|---:|
+| decode | 0.11 s | 0.13 s |
+| transcribe | 7.68 s | 8.77 s |
+| diarize | — | **13.93 s** |
+| analyze | 27.25 s | **61.89 s** |
+| total | 35.4 s | 85.1 s |
+
+Sortformer itself costs about 14 s including NeMo and torch import in its child process. The larger
+change is report generation, which more than doubled once the transcript carried speaker labels:
+the prompt grows and the model writes more. Anyone budgeting demo time should use the three-model
+figure, not the two-model one.
+
+Recorded runtime was `NeMo 2.7.0 / torch 2.11.0+cu129 / cuda`. Two voices were found and **20 of
+20 transcript segments received a label**, with no unknown attribution. That is a favourable case:
+a two-speaker interview with clean turn-taking, where real Whisper segments break on pauses that
+coincide with speaker changes. Fixed-window simulation over the same recordings predicted about
+21% unknown, so the simulation is pessimistic and this result should not be generalised to
+overlapping or multi-party meetings.
+
+Report output stayed consistent with the two-model run: five summary sentences, one open question,
+no invented decisions, risks or tasks, five of six claims with valid references and matching
+quotes and one flagged for review. JSON, CSV and ICS exports returned HTTP 200. VRAM returned to
+15 MiB after all three models had run, so sequential loading and unloading holds on CUDA.
+
+Still unmeasured: Kazakh or code-switched audio, more than two speakers, overlapping speech, peak
+VRAM during the diarization stage, repeated and concurrent runs, the browser UI on this machine,
+and a disconnected rehearsal.

@@ -13,6 +13,19 @@ from backend.pipeline.process import run_process
 from backend.pipeline.structure import Ollama
 
 
+def tokenizer_available(settings: Settings) -> bool:
+    """The report tokenizer bounds prompt length for the models it covers.
+
+    Without it, prompt_tokens falls back to counting UTF-8 bytes, which is deliberately strict
+    and rejects Russian and Kazakh meetings at roughly a quarter of the tested capacity. Setup
+    downloads and checksums the file, so a machine missing it is not in the tested profile.
+    """
+    if not settings.ollama_model.startswith("qwen3.5:"):
+        return True
+    path = settings.llm_tokenizer_path
+    return path.is_file() and path.stat().st_size > 0
+
+
 def asr_available(settings: Settings) -> bool:
     model = settings.asr_model_path
     if settings.asr_backend == "whisper_cpp":
@@ -31,6 +44,7 @@ async def preflight(settings: Settings):
     checks = {
         "ffmpeg": bool(shutil.which("ffmpeg") and shutil.which("ffprobe")),
         "asr": asr_available(settings),
+        "report_tokenizer": tokenizer_available(settings),
         "frontend": (settings.frontend_dir / "index.html").is_file(),
         "postgresql": False,
         "ollama": False,
@@ -44,6 +58,11 @@ async def preflight(settings: Settings):
         "context": settings.llm_context,
         "note": "Readiness checks do not establish GPU compatibility, output accuracy, or offline operation.",
     }
+    if not checks["report_tokenizer"]:
+        details["report_tokenizer_warning"] = (
+            "The pinned report tokenizer is missing, so prompt length falls back to a strict "
+            "byte count and long Russian or Kazakh meetings will be refused early. Run model setup."
+        )
     details["diarization_backend"] = settings.diarization_backend
     details["diarization_ready"] = await diarization_available(settings)
     if not details["diarization_ready"]:

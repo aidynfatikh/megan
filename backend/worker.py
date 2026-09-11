@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 from pathlib import Path
@@ -110,7 +111,16 @@ class Pipeline:
             None,
         )
         job.provenance.llm_digest = selected.get("digest") if selected else None
-        draft = await self.ollama.extract(job.segments, job.report_language)
+        try:
+            draft = await self.ollama.extract(job.segments, job.report_language)
+        finally:
+            (directory / "extraction.attempts.json").write_text(
+                json.dumps(self.ollama.last_attempts, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        (directory / "extraction.draft.json").write_text(
+            draft.model_dump_json(indent=2), encoding="utf-8"
+        )
         await checkpoint("check_sources")
         report = ground_report(draft, job.segments, job.meeting_date)
         for key, value in self.ollama.last_metrics.items():

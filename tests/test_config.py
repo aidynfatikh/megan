@@ -32,3 +32,26 @@ def test_local_services_are_valid():
         database_url="postgresql://megan@localhost:54329/megan",
     )
     assert settings.ollama_base_url == "http://127.0.0.1:11435"
+
+
+def test_preflight_requires_the_pinned_report_tokenizer(tmp_path):
+    """Without it, prompt length silently reverts to a strict byte count."""
+    from backend.config import Settings
+    from backend.runtime import tokenizer_available
+
+    missing = Settings(
+        _env_file=None, ollama_model="qwen3.5:4b", llm_tokenizer_path=tmp_path / "absent.json"
+    )
+    present = tmp_path / "tokenizer.json"
+    present.write_text("{}", encoding="utf-8")
+
+    assert not tokenizer_available(missing)
+    assert tokenizer_available(
+        Settings(_env_file=None, ollama_model="qwen3.5:4b", llm_tokenizer_path=present)
+    )
+    # Another model family uses the byte fallback by design, so the file is not required.
+    assert tokenizer_available(
+        Settings(
+            _env_file=None, ollama_model="qwen3:8b", llm_tokenizer_path=tmp_path / "absent.json"
+        )
+    )

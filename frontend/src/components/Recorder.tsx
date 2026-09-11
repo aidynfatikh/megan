@@ -234,8 +234,7 @@ export function Recorder({
           <span className="record-mic">
             <Mic size={29} strokeWidth={1.5} />
           </span>
-          <h2>A little space to think out loud.</h2>
-          <p>Record your microphone. Stay in the conversation.</p>
+          <h2>Record your microphone</h2>
           <button
             type="button"
             className="primary-button record-start"
@@ -267,8 +266,8 @@ export function Recorder({
           <span className="record-mic completed">
             <Check size={28} />
           </span>
-          <h2>Your conversation, captured.</h2>
-          <p>{timestamp(seconds)} of audio · ready to turn into a report</p>
+          <h2>Recording ready</h2>
+          <p>{timestamp(seconds)} of audio</p>
           <audio controls src={preview} aria-label="Preview your recording" />
           <div className="recording-ready-actions">
             <a href={preview} download={filename} className="text-button">
@@ -322,10 +321,10 @@ export function Recorder({
           </div>
           <p>
             {state === "paused"
-              ? "Take your time. Resume whenever you’re ready."
+              ? "Recording paused."
               : level < 0.006
                 ? "Listening… speak near your microphone."
-                : "You’re coming through. Stay in the moment."}
+                : "Microphone signal detected."}
           </p>
           <div className="recording-controls">
             <button

@@ -71,8 +71,8 @@ Priority = Literal["low", "normal", "high", "unspecified"]
 
 
 class DraftClaim(Model):
-    text: str = Field(min_length=1, max_length=2000)
     evidence: list[Evidence]
+    text: str = Field(min_length=1, max_length=2000)
 
 
 class DraftTopic(Model):
@@ -80,31 +80,44 @@ class DraftTopic(Model):
     theses: list[DraftClaim]
 
 
+class DraftDecision(Model):
+    evidence: list[Evidence]
+    status: Literal["confirmed", "tentative", "reported_fact", "rejected", "superseded"] = (
+        "confirmed"
+    )
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class DraftActionEvidence(Model):
     task: list[Evidence]
     assignee: list[Evidence]
     due: list[Evidence]
     priority: list[Evidence]
+    conditions: list[Evidence] = Field(default_factory=list)
 
 
 class DraftAction(Model):
+    evidence: DraftActionEvidence
+    status: Literal[
+        "outstanding", "completed", "proposal", "hypothetical", "rejected", "superseded"
+    ] = "outstanding"
     task: str = Field(min_length=1, max_length=2000)
     assignee: str | None
     speaker_id: str | None
     due_raw: str | None
     priority: Priority
     conditions: list[str]
-    evidence: DraftActionEvidence
 
 
 class DraftReport(Model):
+    # Resolve actionable state before writing narrative sections in constrained generation.
+    action_items: list[DraftAction]
+    decisions: list[DraftDecision]
     title: str = Field(min_length=1, max_length=200)
     summary: list[DraftClaim] = Field(max_length=5)
     topics: list[DraftTopic]
-    decisions: list[DraftClaim]
     open_questions: list[DraftClaim]
     risks: list[DraftClaim]
-    action_items: list[DraftAction]
 
 
 class Claim(Model):

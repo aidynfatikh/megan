@@ -77,7 +77,7 @@ html {
 .landing-hero {
   display: grid;
   grid-template-columns: 1fr 1.05fr;
-  align-items: center;
+  align-items: start;
   column-gap: 45px;
   padding-top: clamp(32px, 4vw, 56px);
   padding-bottom: 24px;
@@ -103,7 +103,7 @@ html {
   font-weight: 400;
   line-height: 0.99;
   letter-spacing: -2px;
-  margin: 18px 0;
+  margin: 24px 0;
 }
 .landing-page em {
   font-weight: 400;
@@ -151,20 +151,12 @@ html {
 .landing-text-link:hover {
   color: var(--olive);
 }
-.hero-footnote {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #828477;
-  font-size: 11px;
-  margin-top: 18px;
-}
 .hero-composition {
   position: relative;
   align-self: center;
-  height: 500px;
+  height: auto;
   min-width: 0;
-  margin-top: 12px;
+  padding-block: 24px 20px;
 }
 .collage-paper {
   position: absolute;
@@ -208,10 +200,10 @@ html {
   border-radius: 2px;
 }
 .preview-document {
-  position: absolute;
+  position: relative;
   width: 88%;
   left: 0;
-  top: 30px;
+  top: auto;
   background: #fffffc;
   border: 1px solid #d9d9ce;
   border-radius: 12px;
@@ -244,7 +236,7 @@ html {
   border-radius: 50%;
 }
 .preview-content {
-  padding: 22px 25px 0;
+  padding: 22px 25px 16px;
 }
 .preview-overline {
   font-size: 8px;
@@ -360,14 +352,6 @@ html {
   border-radius: 4px;
   color: #7c806e;
 }
-.preview-bottom {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 8px;
-  color: #8f9481;
-  padding: 12px 0;
-}
 .floating-source {
   position: absolute;
   right: -25px;
@@ -407,13 +391,6 @@ html {
   background: #acbe77;
   border-radius: 2px;
 }
-.floating-hint {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 9px;
-  color: #b7c0a6;
-}
 .floating-source p {
   font-family: var(--font-display);
   font-size: 22px;
@@ -424,34 +401,9 @@ html {
   font-size: 8px;
   color: #b9c3a4;
 }
-.handwritten-hint {
-  position: absolute;
-  bottom: -51px;
-  left: 18px;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 21px;
-  color: #828c62;
-  transform: rotate(-7deg);
-}
-.handwritten-hint svg {
-  position: absolute;
-  top: -9px;
-  right: -75px;
-  width: 65px;
-}
-.hero-scroll {
-  grid-column: 1/-1;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 48px;
-  font-size: 10px;
-  color: #8c8d80;
-}
 .format-ribbon {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 25px;
   padding: 24px max(56px, calc((100vw - 1240px) / 2));
@@ -495,7 +447,7 @@ html {
   font-weight: 400;
   letter-spacing: -0.8px;
   line-height: 1.03;
-  margin-top: 22px;
+  margin-top: 0;
 }
 .section-intro > p {
   color: #85877b;
@@ -578,14 +530,6 @@ html {
   font-size: 13px;
   color: #6e775b;
   line-height: 1.8;
-}
-.outcome-note {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  margin-top: 32px;
-  color: #727e5b;
 }
 .evidence-demo {
   background: #fffffa;
@@ -869,7 +813,7 @@ html {
     font-size: clamp(54px, 7vw, 77px);
   }
   .hero-composition {
-    height: 510px;
+    height: auto;
   }
   .preview-document {
     width: 95%;
@@ -884,14 +828,8 @@ html {
     right: -10px;
     bottom: -30px;
   }
-  .handwritten-hint {
-    display: none;
-  }
   .format-ribbon {
     padding-inline: 36px;
-  }
-  .format-ribbon > span:first-child {
-    display: none;
   }
   .outcome-layout {
     gap: 45px;
@@ -922,9 +860,6 @@ html {
   }
   .floating-source:not(.expanded) {
     display: none;
-  }
-  .hero-scroll {
-    margin-top: 24px;
   }
 }
 @media (max-width: 767px) {
@@ -1000,9 +935,6 @@ html {
     align-items: flex-start;
     gap: 14px;
   }
-  .hero-footnote {
-    margin-top: 18px;
-  }
   .hero-composition {
     height: auto;
     max-width: 440px;
@@ -1016,7 +948,7 @@ html {
     width: 94%;
   }
   .preview-content {
-    padding: 20px clamp(16px, 5vw, 24px) 0;
+    padding: 20px clamp(16px, 5vw, 24px) 16px;
   }
   .preview-content h2 {
     font-size: 32px;
@@ -1035,10 +967,6 @@ html {
   }
   .collage-stripes {
     left: 10px;
-  }
-  .hero-scroll {
-    margin-top: 8px;
-    font-size: 9px;
   }
   .format-ribbon {
     padding: 23px 20px;
@@ -1178,10 +1106,7 @@ html {
     scroll-behavior: auto !important;
   }
 }
-.hero-footnote,
-.hero-scroll,
 .preview-metadata,
-.preview-bottom,
 .evidence-demo > small,
 .site-footer p {
   color: #6d7261;

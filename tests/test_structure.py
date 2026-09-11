@@ -51,6 +51,8 @@ async def test_decoder_schema_avoids_large_repetitions_but_validation_keeps_boun
     decoder = json.loads(route.calls[0].request.content)["format"]
     assert "maxLength" not in json.dumps(decoder)
     assert decoder["$defs"]["DraftAction"]["properties"]["priority"]["enum"]
+    assert "status" in decoder["$defs"]["DraftAction"]["required"]
+    assert "status" in decoder["$defs"]["DraftDecision"]["required"]
     from pydantic import ValidationError
 
     from backend.schemas import DraftReport
@@ -125,7 +127,7 @@ def test_action_evidence_requires_known_field_names():
         )
 
 
-async def test_russian_transcript_of_a_realistic_meeting_fits_the_context(respx_mock):
+async def test_russian_transcript_of_a_realistic_meeting_fits_the_context(respx_mock, tmp_path):
     """Byte-counting rejected Russian meetings at roughly a quarter of the usable context."""
     route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
         return_value=httpx.Response(
@@ -137,13 +139,25 @@ async def test_russian_transcript_of_a_realistic_meeting_fits_the_context(respx_
     segments = [
         Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 101)
     ]
-    await Ollama(Settings(_env_file=None)).extract(segments, "ru")
+    from tokenizers import Tokenizer, models, pre_tokenizers
+
+    tokenizer = Tokenizer(models.WordLevel({"[UNK]": 0}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    path = tmp_path / "tokenizer.json"
+    tokenizer.save(str(path))
+    await Ollama(Settings(_env_file=None, llm_tokenizer_path=path)).extract(segments, "ru")
     assert route.called
 
 
-def test_capacity_is_checked_before_the_speaker_stage_runs():
+def test_capacity_is_checked_before_the_speaker_stage_runs(tmp_path):
     """An over-long transcript must fail in seconds, not after diarization."""
-    client = Ollama(Settings(_env_file=None))
+    from tokenizers import Tokenizer, models, pre_tokenizers
+
+    tokenizer = Tokenizer(models.WordLevel({"[UNK]": 0}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    path = tmp_path / "tokenizer.json"
+    tokenizer.save(str(path))
+    client = Ollama(Settings(_env_file=None, llm_tokenizer_path=path))
     line = "Мы обсудили бюджет проекта и решили перенести срок поставки оборудования"
     short = [Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 51)]
     long = [Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 601)]
@@ -151,3 +165,18 @@ def test_capacity_is_checked_before_the_speaker_stage_runs():
     client.check_capacity(short, "ru")
     with pytest.raises(ExtractionError, match="prompt tokens"):
         client.check_capacity(long, "ru")
+
+
+async def test_token_budget_counts_tokens_even_if_a_file_enables_truncation(respx_mock, tmp_path):
+    from tokenizers import Tokenizer, models, pre_tokenizers
+
+    tokenizer = Tokenizer(models.WordLevel({"[UNK]": 0}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    tokenizer.enable_truncation(max_length=10)
+    path = tmp_path / "tokenizer.json"
+    tokenizer.save(str(path))
+    model = Ollama(Settings(_env_file=None, llm_tokenizer_path=path))
+    # Short single-character words can have far more tokens than bytes / 3 predicts.
+    with pytest.raises(ExtractionError, match="context|tokens"):
+        await model.extract([Segment(id="S1", start=0, end=1, text="a " * 14000)], "en")
+    assert not respx_mock.calls

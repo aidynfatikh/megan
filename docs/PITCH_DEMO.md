@@ -1,6 +1,6 @@
 # Five-minute pitch demo: feasibility and rehearsal plan
 
-The proposed demo records the team's presentation and reveals a report of what was just said. The user estimates a five-minute pitch. This plan provisionally treats that as the entire slot, including the reveal; language and additional Q&A time are still unspecified.
+The proposed demo records the team's presentation and reveals a report of what was just said. The user estimates a five-minute pitch. This plan provisionally treats that as the entire slot, including the reveal; the user has confirmed Russian, while additional Q&A time is still unspecified.
 
 **Verdict:** feasible as a short live recording followed by processing during the rest of the presentation. The current app cannot record the entire five minutes and have its final report ready at the instant the pitch ends. That requires a different processing flow, and even incremental processing needs time to incorporate the final words.
 

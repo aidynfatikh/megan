@@ -121,7 +121,9 @@ ruff==0.16.7
 starlette==1.6.0
     # via fastapi
 tokenizers==0.23.2
-    # via faster-whisper
+    # via
+    #   megan-meeting-intelligence (pyproject.toml)
+    #   faster-whisper
 tqdm==4.70.0
     # via
     #   faster-whisper

@@ -18,5 +18,29 @@
   {
     "id": "mentioned_name_is_not_owner", "language": "en", "owners": ["Alex"], "dates": ["2026-09-12"],
     "text": ["Mira mentioned Alex during the discussion. Mira is not taking an action item.", "Alex will send the draft tomorrow.", "We decided to keep the existing title. The launch time has not been agreed."]
+  },
+  {
+    "id": "completed_work_en", "language": "en", "owners": [], "dates": [], "decisions": 0,
+    "text": ["Yesterday Nora finished the migration. I have already added the charts and published the results.", "The results were published before this meeting."]
+  },
+  {
+    "id": "completed_and_future_ru", "language": "ru", "owners": ["Дана"], "dates": ["2026-09-12"],
+    "text": ["Я уже добавил графики и закончил перенос данных.", "Проверка ещё не готова. Дана проверит данные завтра. Это оставшаяся задача."]
+  },
+  {
+    "id": "hypothetical_assignment_kk", "language": "kk", "owners": [], "dates": [], "decisions": 0,
+    "text": ["Мысалы, Айдар ертең есеп жібереді деп елестетейік. Бұл тек мысал, нақты тапсырма емес.", "Бүгін ешкімге тапсырма бермейміз. Шешім әлі қабылданған жоқ."]
+  },
+  {
+    "id": "conditional_assignment_kk", "language": "kk", "owners": ["Айдар"], "dates": ["2026-09-12"], "conditional": true,
+    "text": ["Егер тексеру сәтті өтсе, Айдар есепті ертең жібереді. Есеп тек сәтті тексеруден кейін жіберіледі.", "Бұрынғы деректерді көшіру жұмысы аяқталды, оны қайта орындаудың қажеті жоқ."]
+  },
+  {
+    "id": "completed_later_en", "language": "en", "owners": [], "dates": [],
+    "text": ["Tessa will send the spreadsheet tomorrow.", "Update before we finish: Tessa has just sent that spreadsheet, and we have received it. That task is complete; she does not need to send it again."]
+  },
+  {
+    "id": "conditional_and_background_en", "language": "en", "owners": ["Nora"], "dates": ["2026-09-12"], "conditional": true,
+    "text": ["My train arrives at nine. This is just personal context, not a condition for our work.", "If the checksum matches, Nora will publish the archive tomorrow. Only the checksum is a dependency."]
   }
 ]

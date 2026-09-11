@@ -255,9 +255,12 @@ def test_quote_continuing_into_the_next_segment_is_grounded():
     )
 
     assert checks.quotes_match
-    assert reasons == []
-    # Playback must cover the whole quoted phrase, not just the cited segment.
-    assert sources[0].end == 6
+    assert reasons == ["adjacent_segment_quote:task"]
+    # Each quotation retains its own segment and timestamp; together they cover the phrase.
+    assert [(s.segment_id, s.start, s.end) for s in sources] == [("S1", 0, 3), ("S2", 3, 6)]
+    assert (
+        " ".join(s.quote for s in sources) == "accessibility review and get it done before Thursday"
+    )
 
 
 def test_quote_is_not_stitched_across_unrelated_parts_of_the_meeting():

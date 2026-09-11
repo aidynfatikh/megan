@@ -49,8 +49,15 @@ The Cyrillic penalty is structural: Russian and Kazakh get roughly 60% of Englis
 because they tokenize worse. A 20-minute Russian meeting was accepted, decoded, transcribed and
 diarized before being refused.
 
-The size cap has been raised so that duration is the governing policy for uncompressed input.
-The prompt bound is now checked immediately after transcription, before the speaker stage.
+The size cap has been raised so that duration is the governing policy for uncompressed input,
+and the prompt bound is checked immediately after transcription, before the speaker stage.
+
+The per-language figures above were derived from a bytes-per-token estimate, which has since been
+replaced by the pinned Qwen tokenizer, so real capacity is now measured rather than approximated.
+One consequence deserves attention: when that tokenizer file is absent, `prompt_tokens` falls back
+to counting UTF-8 bytes, which is deliberately strict and returns Russian capacity to roughly four
+minutes. Preflight now reports the tokenizer as a readiness check, because a machine missing it
+looks healthy while silently refusing meetings the tested profile accepts.
 
 **Correction to an earlier characterisation:** the capacity guard has always run before the
 HTTP request, so the language model was never wasted on an oversized transcript. The wasted work
@@ -108,14 +115,11 @@ returned false, so **the owner was dropped and the deadline marked unsupported**
 data was being destroyed by a formatting artifact. This is the likeliest single contributor to
 the 7-of-17 and 8-of-14 review-flag counts in the YouTube evaluation.
 
-A quote is now grounded when it continues contiguously into the following segments, bounded to
-four segments and a 2-second gap. The words must run without interruption and must begin in the
-cited segment, which remains far stricter than searching the meeting. Source playback extends to
-cover the whole quoted phrase. A quote stitched across unrelated parts of the meeting, and an
-absent quote, are both still rejected.
-
-A spanning quote cannot establish a speaker: the first-person wording may belong to whoever
-spoke the continuation.
+A quote is now grounded when it continues contiguously into adjacent segments, bounded to four
+segments and a 2-second gap, and it is split into one cited fragment per segment so each carries
+its own timing. A quote stitched across unrelated parts of the meeting is still rejected, as is an
+absent one, and a passage that occurs ambiguously more than once is refused rather than resolved
+to an arbitrary occurrence.
 
 **A single common word verified a claim.** A quote of «и» passed unflagged. Action fields were
 already protected, because the owner, date or priority must appear inside the quote; claims —
@@ -185,7 +189,8 @@ Ordered by how likely it is to appear in an unfamiliar recording.
 
 | Area | Change |
 |---|---|
-| `pipeline/validate.py` | Contiguous cross-segment quotes accepted; playback extended to the quoted span; spanning quotes barred from establishing a speaker; minimum evidence for claims |
+| `pipeline/validate.py`, `pipeline/evidence.py` | Contiguous cross-segment quotes accepted and split per segment; minimum evidence for claims |
+| `runtime.py` | Report tokenizer reported as a readiness check |
 | `pipeline/dates.py` | Weekday names and bare day/month dates resolved against the meeting date |
 | `pipeline/structure.py` | Capacity check extracted and reusable; prompt construction shared |
 | `worker.py` | Capacity checked before the speaker stage |

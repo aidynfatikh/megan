@@ -95,3 +95,9 @@ This verification does not replace physical-microphone, Safari/iOS, long-recordi
 The landing hero now uses 32–56px top padding instead of 123–150px on desktop, a smaller fluid headline, and adjacent primary/sample actions where space allows. Section spacing and the dashboard introduction were tightened so useful content appears sooner. Narrow phones keep the header controls inside the navigation; tablets keep the sample report unobstructed; phone previews size themselves to their content.
 
 The landing, dashboard, upload, and sample-report pages were checked at 320, 390, 768, 1024, 1440, and 1920px widths (24 combinations). All loaded without page-level horizontal overflow or a development error overlay. The landing's primary action was visible without scrolling at each tested viewport. Production build and CSS formatting checks passed. Screenshots and measurement results are under ignored `.local/`.
+
+## Interface copy
+
+Screen text should identify the page, describe an action, show a result, or explain a relevant constraint. Decorative taglines and repeated privacy slogans were removed from the hero, preview, sidebar, recording flow, report, and footer. The landing now says “Your meetings, summarized.” and offers “Record a meeting” and “View sample report.” Its privacy explanation stays in the privacy section and FAQ.
+
+The dashboard opens directly to meeting controls, filters, and history. Its promotional illustration, introductory slogans, duplicate statistics, and placeholder profile were removed. The capture page uses one form, with file limits, microphone guidance, and date/language controls next to the actions they explain. Sample labels, errors, processing states, and source-review information remain explicit. The same 24 responsive combinations were checked again after the copy changes.

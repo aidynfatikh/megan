@@ -32,8 +32,11 @@ async def test_extraction_preserves_annotated_commitments(case):
     model = Ollama(Settings())
     draft = await model.extract(segments, case["language"])
     report = ground_report(draft, segments, date(2026, 9, 11))
-    directory = Path(".local/evaluation/model-cases")
+    directory = Path(os.getenv("MEGAN_MODEL_RESULTS", ".local/evaluation/model-cases"))
     directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{case['id']}-draft.json").write_text(
+        draft.model_dump_json(indent=2), encoding="utf-8"
+    )
     (directory / f"{case['id']}.json").write_text(
         report.model_dump_json(indent=2), encoding="utf-8"
     )
@@ -45,6 +48,8 @@ async def test_extraction_preserves_annotated_commitments(case):
     assert all(a.checks.quotes_match and a.checks.references_valid for a in report.action_items)
     if case.get("conditional"):
         assert report.action_items[0].conditions
+    if "decisions" in case:
+        assert len(report.decisions) == case["decisions"]
     claims = report.summary + report.decisions + report.open_questions + report.risks
     assert all(c.checks.quotes_match and c.checks.references_valid for c in claims)
 
@@ -98,7 +103,7 @@ async def test_self_assignments_use_voices_without_naming_a_nonparticipant_speak
     ]
     draft = await Ollama(Settings()).extract(segments, "en")
     report = ground_report(draft, segments, date(2026, 9, 11))
-    root = Path(".local/evaluation/model-cases")
+    root = Path(os.getenv("MEGAN_MODEL_RESULTS", ".local/evaluation/model-cases"))
     root.mkdir(parents=True, exist_ok=True)
     (root / "speaker-assignments-draft.json").write_text(draft.model_dump_json(indent=2))
     (root / "speaker-assignments.json").write_text(report.model_dump_json(indent=2))

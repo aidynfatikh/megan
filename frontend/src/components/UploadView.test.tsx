@@ -44,7 +44,7 @@ test("unavailable services prevent uploads while allowing the labeled example", 
     screen.getByRole("button", { name: "Create meeting report" }),
   ).toBeDisabled();
   await user.click(
-    screen.getByRole("button", { name: /Open an example report/ }),
+    screen.getByRole("button", { name: "View sample report" }),
   );
   expect(onExample).toHaveBeenCalledOnce();
 });

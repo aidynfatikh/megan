@@ -1099,7 +1099,6 @@ summary:focus-visible {
   color: #5b674d;
 }
 .source-panel {
-  top: 22px;
   padding: 21px;
 }
 .source-panel blockquote {
@@ -1119,9 +1118,6 @@ summary:focus-visible {
 }
 .source-panel .eyebrow {
   color: #576445;
-}
-.review-layout.with-source {
-  grid-template-columns: minmax(0, 1fr) 280px;
 }
 .recording-bar {
   background: #fffffb;
@@ -1252,13 +1248,6 @@ summary:focus-visible {
   }
   .capture-heading h1 {
     font-size: 39px;
-  }
-  .review-layout.with-source {
-    grid-template-columns: 1fr;
-  }
-  .source-panel {
-    position: static;
-    grid-row: 1;
   }
 }
 @media (max-width: 1000px) and (min-width: 768px) {

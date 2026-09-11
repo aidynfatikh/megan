@@ -825,9 +825,7 @@ export default function Workspace({ route }: { route: string }) {
                       Transcript<span>{job.segments.length}</span>
                     </button>
                   </div>
-                  <div
-                    className={`review-layout ${source ? "with-source" : ""}`}
-                  >
+                  <div className="review-layout">
                     <div>
                       {tab === "report" ? (
                         <ReportView

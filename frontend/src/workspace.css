@@ -453,6 +453,8 @@
 }
 .source-panel {
   position: fixed;
+  top: auto;
+  height: auto;
   z-index: 60;
   right: 24px;
   bottom: 24px;
@@ -754,9 +756,6 @@
   .topbar {
     padding: 0 25px;
   }
-  .review-layout.with-source {
-    grid-template-columns: minmax(0, 1fr) 230px;
-  }
   .recording-private {
     display: none;
   }
@@ -771,9 +770,6 @@
   }
 }
 @media (max-width: 1000px) {
-  .review-layout.with-source {
-    grid-template-columns: 1fr;
-  }
   .source-panel {
     right: 16px;
     bottom: 16px;

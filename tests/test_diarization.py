@@ -310,6 +310,26 @@ async def test_full_pipeline_finishes_asr_before_starting_sortformer(
     assert events == ["unload", "asr_start", "asr_exited", "unload", "diarize", "extract"]
 
 
+async def test_spoken_language_override_is_per_meeting(
+    pipeline_case, new_job, tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+
+    pipeline, _ = pipeline_case
+    segments = new_job.segments
+    new_job.segments = []
+    new_job.spoken_language = "kk"
+    transcribe = AsyncMock(return_value=segments)
+    monkeypatch.setattr("backend.worker.transcribe", transcribe)
+    monkeypatch.setattr(
+        "backend.worker.normalize_audio",
+        AsyncMock(return_value=SimpleNamespace(duration=4, silent=False)),
+    )
+    await pipeline.run(new_job, tmp_path, AsyncMock())
+    assert transcribe.call_args.args[0].asr_language == "kk"
+    assert pipeline.settings.asr_language == "auto"
+
+
 async def test_unload_failure_prevents_starting_another_model(pipeline_case, new_job, tmp_path):
     pipeline, events = pipeline_case
     pipeline.ollama.unload.side_effect = RuntimeError("Cannot release GPU model")

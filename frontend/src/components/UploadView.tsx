@@ -20,7 +20,12 @@ export function UploadView({
 }: {
   health: Health | null;
   submitting: boolean;
-  onUpload: (file: File, meetingDate: string, language: string) => void;
+  onUpload: (
+    file: File,
+    meetingDate: string,
+    language: string,
+    spokenLanguage?: string,
+  ) => void;
   onExample: () => void;
   initialMode?: "upload" | "record";
 }) {
@@ -32,6 +37,7 @@ export function UploadView({
   const [error, setError] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [language, setLanguage] = useState("ru");
+  const [spokenLanguage, setSpokenLanguage] = useState("auto");
   function choose(candidate: File | undefined) {
     if (!candidate || submitting) return;
     setError("");
@@ -70,7 +76,9 @@ export function UploadView({
               health?.ready &&
               !health.busy
             )
-              onUpload(file, meetingDate, language);
+              if (spokenLanguage === "auto")
+                onUpload(file, meetingDate, language);
+              else onUpload(file, meetingDate, language, spokenLanguage);
           }}
         >
           <div
@@ -187,6 +195,23 @@ export function UploadView({
             </div>
           )}
           <div className="capture-options">
+            <label className="spoken-language">
+              Spoken language
+              <select
+                value={spokenLanguage}
+                onChange={(event) => setSpokenLanguage(event.target.value)}
+                disabled={submitting}
+              >
+                <option value="auto">Detect automatically</option>
+                <option value="ru">Русский</option>
+                <option value="kk">Қазақша</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <p className="field-hint">
+              For Kazakh with Russian words, try Қазақша if automatic detection
+              chooses the wrong language.
+            </p>
             <div className="upload-options">
               <label>
                 Meeting date{" "}

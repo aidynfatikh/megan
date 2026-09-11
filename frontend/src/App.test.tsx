@@ -13,6 +13,7 @@ vi.mock("./api", async (importOriginal) => ({
     job: vi.fn(),
     example: vi.fn(),
     chat: vi.fn(),
+    notionStatus: vi.fn(),
   },
 }));
 const healthy: Health = {
@@ -52,6 +53,10 @@ beforeEach(() => {
   vi.mocked(api.jobs).mockResolvedValue([ready, failed]);
   vi.mocked(api.job).mockResolvedValue(ready);
   vi.mocked(api.example).mockResolvedValue(sample);
+  vi.mocked(api.notionStatus).mockResolvedValue({
+    configured: false,
+    destination: null,
+  });
   window.scrollTo = vi.fn();
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   Element.prototype.scrollIntoView = vi.fn();

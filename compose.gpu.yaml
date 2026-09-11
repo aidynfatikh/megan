@@ -1,0 +1,5 @@
+# Optional Linux/Windows-WSL2 override with a working NVIDIA Container Toolkit.
+# Ollama uses the GPU; this portable image keeps Whisper and Sortformer on CPU.
+services:
+  ollama:
+    gpus: all

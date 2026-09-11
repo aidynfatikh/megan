@@ -5,6 +5,27 @@ import type { Health } from "../types";
 
 const health = { ready: true, busy: false, max_upload_mb: 100 } as Health;
 
+test("spoken language can differ from the report language", async () => {
+  const user = userEvent.setup();
+  const onUpload = vi.fn();
+  render(
+    <UploadView
+      health={health}
+      submitting={false}
+      onUpload={onUpload}
+      onExample={vi.fn()}
+    />,
+  );
+  const file = new File(["audio"], "kazakh.wav", { type: "audio/wav" });
+  await user.upload(screen.getByLabelText("Meeting recording"), file);
+  await user.selectOptions(screen.getByLabelText("Spoken language"), "kk");
+  await user.selectOptions(screen.getByLabelText("Report language"), "ru");
+  await user.click(
+    screen.getByRole("button", { name: "Create meeting report" }),
+  );
+  expect(onUpload).toHaveBeenCalledWith(file, "", "ru", "kk");
+});
+
 test("uploads a selected file without inventing a meeting date", async () => {
   const user = userEvent.setup();
   const onUpload = vi.fn();
@@ -43,9 +64,7 @@ test("unavailable services prevent uploads while allowing the labeled example", 
   expect(
     screen.getByRole("button", { name: "Create meeting report" }),
   ).toBeDisabled();
-  await user.click(
-    screen.getByRole("button", { name: "View sample report" }),
-  );
+  await user.click(screen.getByRole("button", { name: "View sample report" }));
   expect(onExample).toHaveBeenCalledOnce();
 });
 

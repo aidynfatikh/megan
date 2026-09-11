@@ -3,7 +3,9 @@ import type { ActionPatch, Answer, Health, Job } from "./types";
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const timeout = AbortSignal.timeout(
     path.endsWith("/chat")
-      ? 240000
+      // The backend allows a 30-minute CPU inference timeout. Keep the response
+      // channel open so a slow local model does not leave an invisible running job.
+      ? 1815000
       : options?.method === "POST"
         ? 120000
         : 20000,
@@ -32,11 +34,17 @@ export const api = {
   job: (id: string, signal?: AbortSignal) =>
     request<Job>(`/jobs/${id}`, { signal }),
   example: (signal?: AbortSignal) => request<Job>("/example", { signal }),
-  upload: (file: File, meetingDate: string, language: string) => {
+  upload: (
+    file: File,
+    meetingDate: string,
+    language: string,
+    spokenLanguage = "auto",
+  ) => {
     const data = new FormData();
     data.append("file", file);
     if (meetingDate) data.append("meeting_date", meetingDate);
     data.append("report_language", language);
+    if (spokenLanguage) data.append("spoken_language", spokenLanguage);
     return request<Job>("/jobs", { method: "POST", body: data });
   },
   retry: (id: string) => request<Job>(`/jobs/${id}/retry`, { method: "POST" }),
@@ -46,11 +54,46 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     }),
-  chat: (id: string, question: string) =>
+  notionStatus: () =>
+    request<{ configured: boolean; destination: string | null }>(
+      "/integrations/notion",
+    ),
+  notionConnect: (
+    token: string,
+    dataSourceId?: string,
+    parentPageId?: string,
+  ) =>
+    request<{ configured: boolean; destination: string | null }>(
+      "/integrations/notion",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          data_source_id: dataSourceId || null,
+          parent_page_id: parentPageId || null,
+        }),
+      },
+    ),
+  notionExport: (id: string, revision: number) =>
+    request<{
+      url: string;
+      page_id: string;
+      revision: number;
+      reused: boolean;
+    }>(`/jobs/${id}/notion`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ revision }),
+    }),
+  chat: (id: string, question: string, speakerId?: string) =>
     request<Answer>(`/jobs/${id}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({
+        question,
+        ...(speakerId ? { speaker_id: speakerId } : {}),
+      }),
     }),
 };
 

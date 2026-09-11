@@ -180,7 +180,7 @@ const faqs = [
   ],
   [
     "Can I check and change the report?",
-    "Yes. Follow a timestamp to its transcript passage and play the recording. Edit action items, owners, deadlines, and priorities, or rename speakers when speaker separation is available. Changes are saved as a new report revision. Source matching is a review aid, not a guarantee of accuracy.",
+    "Yes. Follow a timestamp to its transcript passage and play the recording. Edit action items, owners, deadlines, and priorities, and filter the transcript by voice when speaker separation is available. Changes are saved as a new report revision. Source matching is a review aid, not a guarantee of accuracy.",
   ],
   [
     "What can I take out of Megan?",

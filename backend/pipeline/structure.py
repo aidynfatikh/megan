@@ -1,9 +1,11 @@
+import json
+
 import httpx
 from pydantic import ValidationError
 
 from backend.config import Settings
 from backend.pipeline.context import prompt_tokens
-from backend.schemas import ChatDraft, DraftReport, Segment
+from backend.schemas import ChatDraft, DraftReport, Segment, Speaker
 
 
 class ExtractionError(RuntimeError):
@@ -370,8 +372,15 @@ class Ollama:
             drafts = merged
         return drafts[0]
 
-    async def answer(self, question: str, segments: list[Segment]) -> ChatDraft:
-        transcript = "\n".join(f"[{s.id}] {s.text}" for s in segments)
+    async def answer(
+        self, question: str, segments: list[Segment], speakers: list[Speaker] | None = None
+    ) -> ChatDraft:
+        names = {s.id: s.name for s in speakers or []}
+        transcript = "\n".join(
+            f"[{s.id} | voice={s.speaker_id or 'unknown'} | "
+            f"name={json.dumps(names.get(s.speaker_id, 'unknown'), ensure_ascii=False)}] {s.text}"
+            for s in segments
+        )
         return await self.generate(
             [
                 {
@@ -380,7 +389,12 @@ class Ollama:
                 },
                 {
                     "role": "user",
-                    "content": f"Question: {question}\n<excerpts>\n{transcript}\n</excerpts>",
+                    "content": (
+                        "Voice/name metadata identifies who SPOKE each excerpt. A person mentioned "
+                        "inside an excerpt is not necessarily its speaker. Unknown voices cannot be "
+                        "attributed to a named speaker. Cite only segment IDs (for example S7).\n"
+                        f"Question: {question}\n<excerpts>\n{transcript}\n</excerpts>"
+                    ),
                 },
             ],
             ChatDraft,

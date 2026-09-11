@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock
 
+import pytest
+
 from backend.pipeline.rag import SEEDS, answer_question, retrieve, same_stem
-from backend.schemas import ChatDraft, Evidence, Segment
+from backend.schemas import ChatDraft, Evidence, Segment, Speaker
 
 
 async def test_chat_rejects_fabricated_citations():
@@ -123,3 +125,83 @@ def test_inflected_question_reaches_the_answering_turn():
     selected = retrieve("Что сказали о кредитовании юридических лиц?", [answer, *filler])
 
     assert "S1" in {s.id for s in selected}
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Что спикер 1 сказал о бюджете?",
+        "What did speaker A say about the budget?",
+        "Что Дана сказала о бюджете?",
+        "1-спикер бюджет туралы не айтты?",
+    ],
+)
+async def test_chat_uses_the_requested_voice_not_a_name_mentioned_by_another(question):
+    speakers = [Speaker(id="speaker_0", name="Дана"), Speaker(id="speaker_1", name="Айдар")]
+    segments = [
+        Segment(
+            id=f"S{i}",
+            start=i,
+            end=i + 1,
+            speaker_id="speaker_1",
+            text="Дана сказала: бюджет миллион. budget million",
+        )
+        for i in range(20)
+    ] + [Segment(id="S20", start=20, end=21, speaker_id="speaker_0", text="Бюджет двести тысяч.")]
+    ollama = AsyncMock()
+    ollama.answer.return_value = ChatDraft(
+        answer="Двести тысяч", evidence=[Evidence(segment_id="S20", quote="Бюджет двести тысяч.")]
+    )
+    answer = await answer_question(ollama, question, segments, speakers)
+    assert answer.supported
+    args = ollama.answer.call_args.args
+    assert args[2] == speakers
+    assert any(s.id == "S20" for s in args[1])
+    assert all(s.speaker_id == "speaker_0" for s in args[1])
+
+
+async def test_chat_rejects_citation_from_another_or_unknown_voice():
+    speakers = [
+        Speaker(id="speaker_0", name="Speaker 1"),
+        Speaker(id="speaker_1", name="Speaker 2"),
+    ]
+    segments = [
+        Segment(id="S1", start=0, end=1, speaker_id="speaker_0", text="Maybe."),
+        Segment(id="S2", start=1, end=2, speaker_id=None, text="Budget is approved."),
+    ]
+    ollama = AsyncMock()
+    ollama.answer.return_value = ChatDraft(
+        answer="Approved", evidence=[Evidence(segment_id="S2", quote="Budget is approved.")]
+    )
+    assert not (
+        await answer_question(ollama, "What did speaker 1 say?", segments, speakers)
+    ).supported
+
+
+async def test_unknown_speaker_does_not_fall_back_to_everyone():
+    ollama = AsyncMock()
+    result = await answer_question(
+        ollama,
+        "What did speaker 4 say?",
+        [Segment(id="S1", start=0, end=1, text="Budget is approved.")],
+        [Speaker(id="speaker_0", name="Speaker 1")],
+    )
+    assert not result.supported
+    ollama.answer.assert_not_called()
+
+
+async def test_ownership_question_does_not_filter_by_the_assignees_voice():
+    ollama = AsyncMock()
+    ollama.answer.return_value = ChatDraft(
+        answer="Send report", evidence=[Evidence(segment_id="S1", quote="Дана отправит отчёт.")]
+    )
+    segments = [
+        Segment(id="S1", start=0, end=1, speaker_id="speaker_1", text="Дана отправит отчёт.")
+    ]
+    result = await answer_question(
+        ollama,
+        "Что должна сделать Дана?",
+        segments,
+        [Speaker(id="speaker_0", name="Дана"), Speaker(id="speaker_1", name="Айдар")],
+    )
+    assert result.supported

@@ -1,0 +1,691 @@
+{
+  "schema_version": 1,
+  "id": "e7469b2f-929c-5764-b940-d77262a4b6d6",
+  "filename": "demo-russian.wav",
+  "status": "done",
+  "stage": "done",
+  "created_at": "2026-09-11T10:36:01.160170Z",
+  "updated_at": "2026-09-11T10:38:16.010376Z",
+  "meeting_date": "2026-09-11",
+  "report_language": "ru",
+  "duration_sec": 80.0045,
+  "elapsed_sec": 134.84947262500646,
+  "timings": {
+    "decode": 0.10868725000182167,
+    "analyze": 123.28161941602593,
+    "diarize": 3.6744030420086347,
+    "transcribe": 7.743736208009068,
+    "check_sources": 0.01320254197344184,
+    "release_models": 0.006657207966782153,
+    "speakers_ready": 0.0010647919843904674,
+    "transcript_ready": 0.005389750003814697,
+    "llm_eval_duration": 115.977316,
+    "llm_load_duration": 2.331099792,
+    "llm_prompt_eval_duration": 4.901718
+  },
+  "segments": [
+    {
+      "id": "S1",
+      "start": 0.0,
+      "end": 2.26,
+      "text": "Это контрольная запись рабочей встречи.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S2",
+      "start": 2.58,
+      "end": 7.0,
+      "text": "Мы обсуждаем подготовку демонстрации приложения для протоколов совещаний.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S3",
+      "start": 7.36,
+      "end": 9.82,
+      "text": "Сначала уточним, что уже готово.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S4",
+      "start": 10.16,
+      "end": 14.18,
+      "text": "Дана уже закончила оформление отчета и вчера отправила пример команде.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S5",
+      "start": 14.48,
+      "end": 17.88,
+      "text": "Это выполненная работа, повторно назначать ее не нужно.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S6",
+      "start": 18.26,
+      "end": 20.42,
+      "text": "Теперь договоримся о следующих шагах.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S7",
+      "start": 20.42,
+      "end": 23.82,
+      "text": "Дана подготовит инструкцию по запуску к понедельнику.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S8",
+      "start": 24.14,
+      "end": 30.1,
+      "text": "Исправляю срок, не к понедельнику, а к 18 сентября 2026 года.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S9",
+      "start": 30.44,
+      "end": 33.86,
+      "text": "В инструкции нужны команды запуска и порядок проверки звука.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S10",
+      "start": 34.24,
+      "end": 36.2,
+      "text": "Других задач для Даны сегодня нет.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S11",
+      "start": 36.52,
+      "end": 41.5,
+      "text": "Если проверка базы данных пройдет успешно, Айдар проверит экспорт отчета завтра.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S12",
+      "start": 41.84,
+      "end": 44.3,
+      "text": "Это конкретное условное поручение Айдару.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S13",
+      "start": 44.3,
+      "end": 48.32,
+      "text": "Проверка базы данных – единственное условие для этой задачи.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S14",
+      "start": 48.6,
+      "end": 51.54,
+      "text": "Мы решили проводить демонстрацию на русском языке.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S15",
+      "start": 51.86,
+      "end": 57.6,
+      "text": "Микрофон пока не выбрали, использовать встроенный или внешний, остается открытым вопросом.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S16",
+      "start": 57.92,
+      "end": 60.7,
+      "text": "Мы сегодня никому не поручали покупать микрофон.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S17",
+      "start": 61.04,
+      "end": 67.36,
+      "text": "Для примера можно представить, что кто-то заказывает новое оборудование, но это только гипотетический пример.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S18",
+      "start": 67.72,
+      "end": 69.18,
+      "text": "Повторю результат встречи.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S19",
+      "start": 69.46,
+      "end": 72.78,
+      "text": "Инструкция остается задачей даны с исправленным сроком.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S20",
+      "start": 72.78,
+      "end": 75.74,
+      "text": "Экспорт проверит Айдар при указанном условии.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S21",
+      "start": 76.04,
+      "end": 78.06,
+      "text": "Оформление отчета уже закончено.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    },
+    {
+      "id": "S22",
+      "start": 78.38,
+      "end": 79.86,
+      "text": "На этом встреча завершена.",
+      "speaker_id": "speaker_0",
+      "language": "ru"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "speaker_0",
+      "name": "Speaker 1",
+      "name_source": "anonymous"
+    }
+  ],
+  "diarization_status": "done",
+  "report": {
+    "title": "Отчет о рабочей встрече по подготовке демонстрации приложения",
+    "summary": [
+      {
+        "id": "SUM1",
+        "text": "Оформление отчета завершено Даною и отправлено команде, повторное поручение на эту работу не требуется.",
+        "evidence": [
+          {
+            "segment_id": "S4",
+            "quote": "Дана уже закончила оформление отчета и вчера отправила пример команде.",
+            "start": 10.16,
+            "end": 14.18
+          },
+          {
+            "segment_id": "S5",
+            "quote": "Это выполненная работа, повторно назначать ее не нужно.",
+            "start": 14.48,
+            "end": 17.88
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM2",
+        "text": "Дана должна подготовить инструкцию по запуску приложения с командами запуска и порядком проверки звука до 18 сентября 2026 года.",
+        "evidence": [
+          {
+            "segment_id": "S7",
+            "quote": "Дана подготовит инструкцию по запуску к понедельнику.",
+            "start": 20.42,
+            "end": 23.82
+          },
+          {
+            "segment_id": "S8",
+            "quote": "Исправляю срок, не к понедельнику, а к 18 сентября 2026 года.",
+            "start": 24.14,
+            "end": 30.1
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM3",
+        "text": "Айдар должен проверить экспорт отчета завтра при условии успешной проверки базы данных.",
+        "evidence": [
+          {
+            "segment_id": "S11",
+            "quote": "Если проверка базы данных пройдет успешно, Айдар проверит экспорт отчета завтра.",
+            "start": 36.52,
+            "end": 41.5
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "topics": [
+      {
+        "id": "T1",
+        "title": "Готовность к демонстрации",
+        "theses": [
+          {
+            "id": "T1.1",
+            "text": "Оформление отчета завершено Даною.",
+            "evidence": [
+              {
+                "segment_id": "S4",
+                "quote": "Дана уже закончила оформление отчета и вчера отправила пример команде.",
+                "start": 10.16,
+                "end": 14.18
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T1.2",
+            "text": "Демонстрация будет проводиться на русском языке.",
+            "evidence": [
+              {
+                "segment_id": "S14",
+                "quote": "Мы решили проводить демонстрацию на русском языке.",
+                "start": 48.6,
+                "end": 51.54
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T1.3",
+            "text": "Выбор микрофона (встроенного или внешнего) остается нерешенным.",
+            "evidence": [
+              {
+                "segment_id": "S15",
+                "quote": "Микрофон пока не выбрали, использовать встроенный или внешний, остается открытым вопросом.",
+                "start": 51.86,
+                "end": 57.6
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "T2",
+        "title": "План действий",
+        "theses": [
+          {
+            "id": "T2.1",
+            "text": "Дана должна подготовить инструкцию по запуску приложения до 18 сентября 2026 года.",
+            "evidence": [
+              {
+                "segment_id": "S7",
+                "quote": "Дана подготовит инструкцию по запуску к понедельнику.",
+                "start": 20.42,
+                "end": 23.82
+              },
+              {
+                "segment_id": "S8",
+                "quote": "Исправляю срок, не к понедельнику, а к 18 сентября 2026 года.",
+                "start": 24.14,
+                "end": 30.1
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T2.2",
+            "text": "Инструкция должна содержать команды запуска и порядок проверки звука.",
+            "evidence": [
+              {
+                "segment_id": "S9",
+                "quote": "В инструкции нужны команды запуска и порядок проверки звука.",
+                "start": 30.44,
+                "end": 33.86
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T2.3",
+            "text": "Айдар должен проверить экспорт отчета завтра при условии успешной проверки базы данных.",
+            "evidence": [
+              {
+                "segment_id": "S11",
+                "quote": "Если проверка базы данных пройдет успешно, Айдар проверит экспорт отчета завтра.",
+                "start": 36.52,
+                "end": 41.5
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "T3",
+        "title": "Отсутствие задач",
+        "theses": [
+          {
+            "id": "T3.1",
+            "text": "Для Даны других задач на текущий день не предусмотрено.",
+            "evidence": [
+              {
+                "segment_id": "S10",
+                "quote": "Других задач для Даны сегодня нет.",
+                "start": 34.24,
+                "end": 36.2
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T3.2",
+            "text": "Заказ микрофона не поручен никому.",
+            "evidence": [
+              {
+                "segment_id": "S16",
+                "quote": "Мы сегодня никому не поручали покупать микрофон.",
+                "start": 57.92,
+                "end": 60.7
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "id": "D1",
+        "text": "Задачи по подготовке инструкции Даною и проверке экспорта Айдаром подтверждены с уточненными условиями и сроками.",
+        "evidence": [
+          {
+            "segment_id": "S19",
+            "quote": "Инструкция остается задачей даны с исправленным сроком.",
+            "start": 69.46,
+            "end": 72.78
+          },
+          {
+            "segment_id": "S20",
+            "quote": "Экспорт проверит Айдар при указанном условии.",
+            "start": 72.78,
+            "end": 75.74
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "D2",
+        "text": "Язык проведения демонстрации определен как русский.",
+        "evidence": [
+          {
+            "segment_id": "S14",
+            "quote": "Мы решили проводить демонстрацию на русском языке.",
+            "start": 48.6,
+            "end": 51.54
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "open_questions": [
+      {
+        "id": "Q1",
+        "text": "Какой микрофон использовать для демонстрации (встроенный или внешний).",
+        "evidence": [
+          {
+            "segment_id": "S15",
+            "quote": "Микрофон пока не выбрали, использовать встроенный или внешний, остается открытым вопросом.",
+            "start": 51.86,
+            "end": 57.6
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "Q2",
+        "text": "Кто именно будет заказывать новое оборудование (гипотетический сценарий).",
+        "evidence": [
+          {
+            "segment_id": "S17",
+            "quote": "Для примера можно представить, что кто-то заказывает новое оборудование, но это только гипотетический пример.",
+            "start": 61.04,
+            "end": 67.36
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "risks": [],
+    "action_items": [
+      {
+        "id": "A1",
+        "task": "Подготовить инструкцию по запуску приложения",
+        "assignee": "Дана",
+        "speaker_id": null,
+        "due": {
+          "raw": "18 сентября 2026 года",
+          "date": "2026-09-18",
+          "resolution": "explicit"
+        },
+        "priority": "unspecified",
+        "conditions": [],
+        "evidence": {
+          "due": [
+            {
+              "segment_id": "S8",
+              "quote": "18 сентября 2026 года",
+              "start": 24.14,
+              "end": 30.1
+            }
+          ],
+          "task": [
+            {
+              "segment_id": "S7",
+              "quote": "Дана подготовит инструкцию по запуску к понедельнику.",
+              "start": 20.42,
+              "end": 23.82
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S7",
+              "quote": "Дана",
+              "start": 20.42,
+              "end": 23.82
+            }
+          ],
+          "priority": [],
+          "conditions": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        },
+        "edited_fields": []
+      },
+      {
+        "id": "A2",
+        "task": "Проверить экспорт отчета",
+        "assignee": "Айдар",
+        "speaker_id": null,
+        "due": {
+          "raw": null,
+          "date": null,
+          "resolution": "not_stated"
+        },
+        "priority": "unspecified",
+        "conditions": [
+          "Проверка базы данных пройдет успешно"
+        ],
+        "evidence": {
+          "due": [],
+          "task": [
+            {
+              "segment_id": "S11",
+              "quote": "Если проверка базы данных пройдет успешно, Айдар проверит экспорт отчета завтра.",
+              "start": 36.52,
+              "end": 41.5
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S11",
+              "quote": "Айдар",
+              "start": 36.52,
+              "end": 41.5
+            }
+          ],
+          "priority": [],
+          "conditions": [
+            {
+              "segment_id": "S13",
+              "quote": "Проверка базы данных – единственное условие для этой задачи.",
+              "start": 44.3,
+              "end": 48.32
+            }
+          ]
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "needs_review",
+          "reasons": [
+            "possible_omitted_deadline"
+          ]
+        },
+        "edited_fields": []
+      }
+    ],
+    "content_status": "ready"
+  },
+  "report_revision": 1,
+  "attempt": 1,
+  "warnings": [
+    "Speaker separation supports up to four voices; labels need review. 0 of 22 transcript segments have unknown attribution."
+  ],
+  "error": null,
+  "provenance": {
+    "asr_backend": "whisper_cpp",
+    "asr_model": "ggml-large-v3-turbo.bin",
+    "llm": "qwen3.5:4b",
+    "llm_digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+    "diarization_backend": "sortformer_cpp",
+    "diarization_model": "diar_streaming_sortformer_4spk-v2.q8_0.gguf",
+    "diarization_model_sha256": "0679cfeb1ce356d0dea9470b31274f4bfc7eb927497d82005483770666da998a",
+    "diarization_runtime": "nemo-speech 0.1.0",
+    "sample": false,
+    "demo": "Prerecorded synthetic speech. This saved report was generated on the Mac; it is not a new Docker model run."
+  }
+}

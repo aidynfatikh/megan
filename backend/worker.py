@@ -56,7 +56,12 @@ class Pipeline:
             await checkpoint("transcribe")
             job.provenance.asr_backend = self.settings.asr_backend
             job.provenance.asr_model = self.settings.asr_model_path.name
-            segments = await transcribe(self.settings, wav, directory / "transcript.json")
+            asr_settings = (
+                self.settings.model_copy(update={"asr_language": job.spoken_language})
+                if job.spoken_language
+                else self.settings
+            )
+            segments = await transcribe(asr_settings, wav, directory / "transcript.json")
             if any(s.end > audio.duration + 1 for s in segments):
                 raise AudioError("ASR timestamps extend beyond the recording.")
             # A small terminal timestamp overrun can arise from ASR frame rounding.

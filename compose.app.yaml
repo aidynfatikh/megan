@@ -1,0 +1,94 @@
+name: megan-demo
+
+# Share one private network namespace so the app retains its loopback-only
+# database/model policy. Only the web interface is published to the host.
+services:
+  postgres:
+    image: postgres:18.3
+    environment:
+      POSTGRES_USER: megan
+      POSTGRES_PASSWORD: megan
+      POSTGRES_DB: megan
+    command: ["postgres", "-c", "listen_addresses=127.0.0.1"]
+    ports:
+      - "127.0.0.1:${MEGAN_DOCKER_PORT:-8766}:8000"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U megan -d megan"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:0.33.2
+    network_mode: service:postgres
+    environment:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - ./models/ollama:/root/.ollama/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: .
+    network_mode: service:postgres
+    env_file:
+      - path: .env.notion.local
+        required: false
+    environment:
+      DATABASE_URL: postgresql://megan:megan@127.0.0.1:5432/megan
+      DATA_DIR: /app/data
+      DEMO_SEED_DIR: /app/demo
+      ASR_BACKEND: whisper_cpp
+      ASR_MODEL_PATH: /app/models/ggml-large-v3-turbo.bin
+      ASR_DEVICE: cpu
+      ASR_THREADS: "4"
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen3.5:4b
+      LLM_TOKENIZER_PATH: /app/models/qwen3.5-tokenizer/tokenizer.json
+      LLM_TIMEOUT_SEC: "1800"
+      STAGE_TIMEOUT_SEC: "3600"
+      DIARIZATION_BACKEND: sortformer_cpp
+      DIARIZATION_MODEL_PATH: /app/models/diar_streaming_sortformer_4spk-v2.q8_0.gguf
+      DIARIZATION_DEVICE: cpu
+    volumes:
+      - ./models:/app/models:ro
+      - app-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/jobs', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 20
+
+  setup:
+    image: megan-demo-app
+    profiles: ["setup"]
+    network_mode: service:postgres
+    environment:
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen3.5:4b
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: ["sh", "-c", "python scripts/setup_models.py --profile mac && python scripts/setup_diarization.py --runtime cpp"]
+
+volumes:
+  postgres-data:
+  app-data:

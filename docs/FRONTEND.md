@@ -25,15 +25,15 @@ Megan has its own wordmark, copy, colors, document specimen, layout, and locally
 
 ## Implemented experience
 
-| Surface | Behavior |
-| --- | --- |
-| Landing page | Responsive hero; clickable source quotation; decisions/next-steps/sources selector; workflow explanation; accurate privacy and input/export information; native FAQ accordions; working workspace/capture/sample links. |
-| Meeting dashboard | API-backed meeting rows, title/filename search, status filters, newest/oldest order, real counts, empty/loading/error states, and a separate sample invitation. |
-| Action items | Tasks across completed meetings, searchable by task/owner/meeting, with links to the report where editing and source review occur. No invented task-completion state. |
-| Capture | Microphone or file upload; report language; optional uploaded-meeting date; recording date prefilled only for recordings made now. |
-| Recorder | Microphone permission/error handling, real input-level meter, audio-sample duration, pause/resume, finish, local playback, WAV download, discard, and size/duration auto-stop. |
-| Meeting review | Existing report, transcript search, source-to-audio playback, editing, speaker naming, exports, progress/retry, and chat retained. Saved-meeting URLs can be reopened and browser Back works. |
-| Accessibility | Visible focus; skip links; native form labels; state announcements; mobile navigation with focus trapping, Escape and focus return; accessible edit dialog; reduced-motion rules. |
+| Surface           | Behavior                                                                                                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Landing page      | Responsive hero; clickable source quotation; decisions/next-steps/sources selector; workflow explanation; accurate privacy and input/export information; native FAQ accordions; working workspace/capture/sample links. |
+| Meeting dashboard | API-backed meeting rows, title/filename search, status filters, newest/oldest order, real counts, empty/loading/error states, and a sample-report shortcut in the sidebar footer.                                       |
+| Action items      | Tasks across completed meetings, searchable by task/owner/meeting, with links to the report where editing and source review occur. No invented task-completion state.                                                   |
+| Capture           | Microphone or file upload; report language; optional uploaded-meeting date; recording date prefilled only for recordings made now.                                                                                      |
+| Recorder          | Microphone permission/error handling, real input-level meter, audio-sample duration, pause/resume, finish, local playback, WAV download, discard, and size/duration auto-stop.                                          |
+| Meeting review    | Existing report, transcript search, source-to-audio playback, editing, speaker naming, exports, progress/retry, and chat retained. Saved-meeting URLs can be reopened and browser Back works.                           |
+| Accessibility     | Visible focus; skip links; native form labels; state announcements; mobile navigation with focus trapping, Escape and focus return; accessible edit dialog; reduced-motion rules.                                       |
 
 Routes use URL fragments so the built app works with the existing FastAPI `/` and `/assets` routes without server rewrite rules:
 
@@ -47,7 +47,7 @@ Routes use URL fragments so the built app works with the existing FastAPI `/` an
 /#/meetings/<job-id>       Saved or processing meeting
 ```
 
-The workspace is lazy-loaded. No new hosted services or runtime CDN dependencies were added.
+The workspace and recorder ship in the initial app bundle so capture opens immediately. Saved meeting lists and reports use skeleton placeholders while their API requests are pending. No new hosted services or runtime CDN dependencies were added.
 
 ## Recording and recovery details
 
@@ -101,3 +101,27 @@ The landing, dashboard, upload, and sample-report pages were checked at 320, 390
 Screen text should identify the page, describe an action, show a result, or explain a relevant constraint. Decorative taglines and repeated privacy slogans were removed from the hero, preview, sidebar, recording flow, report, and footer. The landing now says “Your meetings, summarized.” and offers “Record a meeting” and “View sample report.” Its privacy explanation stays in the privacy section and FAQ.
 
 The dashboard opens directly to meeting controls, filters, and history. Its promotional illustration, introductory slogans, duplicate statistics, and placeholder profile were removed. The capture page uses one form, with file limits, microphone guidance, and date/language controls next to the actions they explain. Sample labels, errors, processing states, and source-review information remain explicit. The same 24 responsive combinations were checked again after the copy changes.
+
+## Processing status
+
+The top-right Local processing control now reflects `/api/health`: green when services are ready, red when something needs attention, and neutral during the first check. Clicking it opens a small popover with relevant problems in plain language and a Check again button. Health refreshes independently of meeting history every 10 seconds; failed requests clear the previous ready state. Normal processing is not an error. Optional speaker separation problems explain whether reports can still be created.
+
+The separate System status navigation item and technical setup panel were removed. The popover supports Escape, outside-click and keyboard dismissal, and fits a 320px screen. Verification: 26 frontend tests and the production build passed; desktop/mobile browser checks covered the disconnected state and a simulated healthy response.
+
+## Immediate capture and loading placeholders
+
+“Record a meeting” opens the capture form directly, without a workspace loading screen or entry fade. Health and history requests do not block the recorder. Recent meetings, the meeting library, action lists, and saved reports use placeholders shaped like their eventual content, with accessible loading labels and reduced-motion support. Pending history no longer flashes an empty-library message or zero counts.
+
+Verification: 29 frontend tests and the production build passed. Browser checks held API responses pending and confirmed that the recorder stayed available with no intervening loading screen. Library and report placeholders fit a 320px viewport without horizontal overflow.
+
+## FAQ and workspace layout
+
+The FAQ heading is vertically centered beside the question list. Opening an answer closes the previous answer, and the same question can be toggled closed. The new-meeting form now fills the same content area as the dashboard, including tablet widths. The workspace header stays sticky on mobile.
+
+The desktop sidebar collapses to a 72px rail with the Megan mark and navigation icons. Following the Kalqan sidebar interaction, hovering or focusing the mark reveals the expand icon. Navigation retains accessible labels and tooltips; the preference survives navigation and reloads. Mobile continues to use a full drawer, independent of the desktop preference, and switching to desktop clears its scroll lock. The inline How it works panel and its sidebar entry were removed.
+
+Verification: 33 frontend tests, formatting, and production build passed. Browser checks confirmed the icon/mark hover, full-width capture form, sticky mobile header, and mobile drawer behavior after desktop collapse.
+
+Sidebar collapse keeps the logo, icon column, padding, and button heights fixed while the panel changes width. Focus moves between the toggles without scrolling the clipped header. Browser animation checks at 1440px and 900px measured no horizontal or vertical movement of the mark or navigation icons in either direction; the mobile drawer still fits at 390px. All 33 frontend tests and the production build passed after the adjustment.
+
+The sample-report shortcut now sits in the sidebar footer on every workspace page, replacing the empty-library banner. It becomes a labeled report icon in the collapsed rail, stays anchored during collapse, and appears with its full label in the mobile drawer. It uses the existing sample-report route and closes the mobile drawer on selection.

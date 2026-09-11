@@ -51,7 +51,7 @@ export function UploadView({
     setFile(candidate);
   }
   return (
-    <div className="capture-view panel-enter">
+    <div className="capture-view">
       <a className="back-link" href="#/workspace">
         <ArrowLeft size={14} /> All meetings
       </a>
@@ -244,14 +244,15 @@ export function UploadView({
             </button>
             {!health ? (
               <p className="setup-hint">
-                Connecting to your local services. Recording and file selection
-                are still available.
+                Recording and file selection are available. Check the processing
+                indicator above before creating a report.
               </p>
             ) : (
               !health.ready && (
                 <p className="setup-hint">
-                  Local services need setup. Open <strong>System status</strong>{" "}
-                  or explore the example below.
+                  Megan isn’t ready to create reports. Click{" "}
+                  <strong>Local processing</strong> above to see what needs
+                  attention.
                 </p>
               )
             )}

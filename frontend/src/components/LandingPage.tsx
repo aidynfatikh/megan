@@ -193,6 +193,7 @@ const faqs = [
 ];
 
 export function LandingPage() {
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [outcome, setOutcome] = useState(0);
   const [showQuote, setShowQuote] = useState(false);
@@ -398,8 +399,15 @@ export function LandingPage() {
           </div>
           <div className="faq-list">
             {faqs.map(([question, answer]) => (
-              <details key={question}>
-                <summary>
+              <details key={question} open={openFaq === question}>
+                <summary
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setOpenFaq((previous) =>
+                      previous === question ? null : question,
+                    );
+                  }}
+                >
                   {question}
                   <ChevronDown size={17} />
                 </summary>

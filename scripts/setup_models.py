@@ -54,6 +54,19 @@ def main():
             "ASR artifact is missing or its checksum differs from the pinned manifest."
         )
     settings = Settings()
+    if settings.ollama_model.startswith("qwen3.5:"):
+        tokenizer = manifest["tokenizer"]
+        directory = Path(tokenizer["directory"])
+        path = directory / tokenizer["filename"]
+        if not args.check and (not path.is_file() or sha256(path) != tokenizer["sha256"]):
+            hf_hub_download(
+                tokenizer["repository"],
+                tokenizer["filename"],
+                revision=tokenizer["revision"],
+                local_dir=directory,
+            )
+        if not path.is_file() or sha256(path) != tokenizer["sha256"]:
+            raise SystemExit("Report tokenizer is missing or differs from the pinned manifest.")
     with httpx.Client(base_url=settings.ollama_base_url, timeout=30, trust_env=False) as client:
         response = client.get("/api/tags")
         response.raise_for_status()

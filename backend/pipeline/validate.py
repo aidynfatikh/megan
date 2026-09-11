@@ -1,10 +1,10 @@
 """Mechanical evidence checks, explicitly not a semantic truth verifier."""
 
 import re
-import unicodedata
 from datetime import date
 
 from backend.pipeline.dates import resolve_due
+from backend.pipeline.evidence import adjacent_sources, normalize
 from backend.schemas import (
     Action,
     Checks,
@@ -18,11 +18,6 @@ from backend.schemas import (
     Source,
     Topic,
 )
-
-
-def normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text)).casefold().strip()
-
 
 PRIORITY_CUES = {
     "high": r"\b(?:high priority|urgent|высок\w* приоритет\w*|срочно|срочный|шұғыл|жоғары басымдық)\b",
@@ -51,42 +46,35 @@ def negates_date(text, raw):
 
 def first_person_commitment(quote):
     # Only a lexical cue; all voice-based task ownership remains marked for review.
-    return bool(re.match(r"^(?:i(?:['’]ll|\s+will)\b|я\b|мен\b)", normalize(quote).lstrip('"“«')))
+    return bool(
+        re.match(
+            r"^(?:(?:so|well|okay|ok|um|uh|and|then)[,\s]+)*(?:i(?:['’]ll|\s+will)\b|я\b|мен\b)",
+            normalize(quote).lstrip('"“«'),
+        )
+    )
 
 
-# Whisper splits continuous speech at arbitrary points, so a model quoting one spoken phrase
-# can legitimately cross a segment boundary. Such a quote is still grounded: the words must run
-# contiguously and must begin in the cited segment, which stays far stricter than searching the
-# whole meeting. Without this, a formatting artifact was indistinguishable from invention and
-# discarded the owner and deadline it carried.
-SPAN_MAX_SEGMENTS = 4
-SPAN_MAX_GAP_SEC = 2.0
+def owner_is_contact(name, sources):
+    name = re.escape(normalize(name))
+    named_subject = rf"\b{name}\s+(?:will|shall|must|agreed to|is responsible|owns)\b"
+    if any(re.search(named_subject, normalize(s.quote)) for s in sources):
+        return False
+    contact = rf"\b(?:with|to|ask|tell|go ahead[,\s]*)\s*{name}\b"
+    return any(
+        first_person_commitment(s.quote) and re.search(contact, normalize(s.quote)) for s in sources
+    )
+
+
+def anonymous_assignee(name):
+    return name is None or bool(
+        re.fullmatch(r"(?:speaker|говорящий|сөйлеуші)[ _-]*\d+", normalize(name))
+    )
+
 
 # A claim is only as good as the words backing it. Single common tokens such as "и" appear in
 # almost every segment and support nothing, so thin claim evidence is surfaced for review. Action
 # fields keep their own stricter test: the owner, date or priority must appear inside the quote.
 MIN_CLAIM_QUOTE_CHARS = 10
-
-
-def matching_span(quote: str, segments: dict[str, Segment], segment_id: str) -> Segment | None:
-    """Return the last segment a contiguous quote covers, or None when it is unsupported."""
-    wanted = normalize(quote)
-    if not wanted:
-        return None
-    ordered = list(segments.values())
-    start = next((i for i, s in enumerate(ordered) if s.id == segment_id), None)
-    if start is None:
-        return None
-    joined = normalize(ordered[start].text)
-    if wanted in joined:
-        return ordered[start]
-    for index in range(start + 1, min(start + SPAN_MAX_SEGMENTS, len(ordered))):
-        if ordered[index].start - ordered[index - 1].end > SPAN_MAX_GAP_SEC:
-            break
-        joined = f"{joined} {normalize(ordered[index].text)}"
-        if wanted in joined:
-            return ordered[index]
-    return None
 
 
 def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field: str):
@@ -96,22 +84,26 @@ def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field:
         reasons.append(f"missing_evidence:{field}")
     for entry in evidence:
         segment = segments.get(entry.segment_id)
-        last = None
         if segment is None:
             refs_valid = quotes_match = False
             reasons.append(f"invalid_reference:{field}")
-        else:
-            last = matching_span(entry.quote, segments, entry.segment_id)
-            if last is None:
-                quotes_match = False
-                reasons.append(f"quote_mismatch:{field}")
-            elif field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
-                reasons.append(f"weak_evidence:{field}")
+        elif not normalize(entry.quote) or normalize(entry.quote) not in normalize(segment.text):
+            adjacent = adjacent_sources(entry, segments)
+            if adjacent:
+                sources.extend(adjacent)
+                reasons.append(f"adjacent_segment_quote:{field}")
+                if field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+                    reasons.append(f"weak_evidence:{field}")
+                continue
+            quotes_match = False
+            reasons.append(f"quote_mismatch:{field}")
+        elif field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+            reasons.append(f"weak_evidence:{field}")
         sources.append(
             Source(
                 **entry.model_dump(),
                 start=segment.start if segment else None,
-                end=(last or segment).end if segment else None,
+                end=segment.end if segment else None,
             )
         )
     return sources, Checks(references_valid=refs_valid, quotes_match=quotes_match), reasons
@@ -143,12 +135,16 @@ def ground_report(
             )
             for i, t in enumerate(draft.topics, 1)
         ],
-        decisions=[claim(c, f"D{i}") for i, c in enumerate(draft.decisions, 1)],
+        decisions=[
+            claim(c, f"D{i}")
+            for i, c in enumerate((d for d in draft.decisions if d.status == "confirmed"), 1)
+        ],
         open_questions=[claim(c, f"Q{i}") for i, c in enumerate(draft.open_questions, 1)],
         risks=[claim(c, f"R{i}") for i, c in enumerate(draft.risks, 1)],
     )
-    for i, entry in enumerate(draft.action_items, 1):
+    for i, entry in enumerate((a for a in draft.action_items if a.status == "outstanding"), 1):
         evidence, checks_by_field, reasons = {}, {}, []
+        entries_by_field = {}
         fields = ["task"]
         if entry.assignee or entry.speaker_id or entry.evidence.assignee:
             fields.append("assignee")
@@ -156,8 +152,51 @@ def ground_report(
             fields.append("due")
         if entry.priority != "unspecified":
             fields.append("priority")
+        if entry.conditions:
+            fields.append("conditions")
         for field in fields:
             entries = getattr(entry.evidence, field)
+            if field == "assignee" and anonymous_assignee(entry.assignee):
+                partial = not entries or all(
+                    normalize(e.quote) in {"i", "я", "мен"}
+                    and e.segment_id in segments
+                    and normalize(e.quote) in normalize(segments[e.segment_id].text)
+                    for e in entries
+                )
+                candidates = [
+                    e
+                    for e in entry.evidence.task
+                    if e.segment_id in segments
+                    and segments[e.segment_id].speaker_id is not None
+                    and normalize(e.quote) in normalize(segments[e.segment_id].text)
+                    and first_person_commitment(e.quote)
+                    and (not entries or all(s.segment_id == e.segment_id for s in entries))
+                ]
+                if partial and len(candidates) == 1:
+                    entries = candidates
+                    reasons.append("assignee_evidence_from_task_quote")
+            if field == "conditions" and not entries:
+                # Only recover literal conditions from the task's own valid evidence.
+                # Translated conditions need their explicitly supplied source citations.
+                recovered = []
+                for condition in entry.conditions:
+                    source = next(
+                        (
+                            e
+                            for e in entry.evidence.task
+                            if e.segment_id in segments
+                            and normalize(e.quote)
+                            and normalize(e.quote) in normalize(segments[e.segment_id].text)
+                            and normalize(condition)
+                            and normalize(condition) in normalize(e.quote)
+                        ),
+                        None,
+                    )
+                    if source:
+                        recovered.append(Evidence(segment_id=source.segment_id, quote=condition))
+                if len(recovered) == len(entry.conditions):
+                    entries = recovered
+                    reasons.append("condition_evidence_from_task_quote")
             if field == "assignee" and not entries and entry.assignee:
                 for source in entry.evidence.task:
                     segment = segments.get(source.segment_id)
@@ -202,37 +241,42 @@ def ground_report(
                         ]
                         reasons.append("due_evidence_from_task_quote")
                         break
+            entries_by_field[field] = entries
             evidence[field], checks_by_field[field], issues = check_sources(
                 entries, segments, field
             )
             reasons.extend(issues)
-        for field in ("assignee", "due", "priority"):
+        for field in ("assignee", "due", "priority", "conditions"):
             evidence.setdefault(field, [])
 
-        def supported(field, value=None, checks_by_field=checks_by_field, evidence=evidence):
+        def supported(
+            field, value=None, checks_by_field=checks_by_field, entries_by_field=entries_by_field
+        ):
             checks = checks_by_field.get(field)
             if not checks or not checks.references_valid or not checks.quotes_match:
                 return False
             return value is None or any(
-                normalize(value) in normalize(s.quote) for s in evidence[field]
+                normalize(value) in normalize(s.quote) for s in entries_by_field[field]
             )
 
         assignee = entry.assignee
+        contact_owner = bool(assignee and owner_is_contact(assignee, evidence["assignee"]))
+        if contact_owner:
+            assignee = None
+            reasons.append("owner_is_contact_not_assignee")
         if assignee and not supported("assignee", assignee):
             assignee = None
             reasons.append("unsupported_assignee")
 
         def within_cited_segment(source, segments=segments):
-            # A quote that continued into later segments cannot fix a voice: the first-person
-            # wording may belong to whoever spoke the continuation.
+            # Voice ownership needs a quote fragment within its attributed segment.
+            # All fragments must also agree on the same known voice below.
             segment = segments.get(source.segment_id)
             return segment is not None and source.end == segment.end
 
         speaker_id = entry.speaker_id
-        generic_owner = entry.assignee is None or bool(
-            re.fullmatch(r"(?:speaker|говорящий|сөйлеуші)[ _-]*\d+", normalize(entry.assignee))
-        )
-        if generic_owner and speaker_id is None and supported("assignee"):
+        generic_owner = contact_owner or anonymous_assignee(entry.assignee)
+        if generic_owner and supported("assignee"):
             quoted_voices = {segments[s.segment_id].speaker_id for s in evidence["assignee"]}
             if (
                 len(quoted_voices) == 1
@@ -240,9 +284,11 @@ def ground_report(
                 and all(within_cited_segment(s) for s in evidence["assignee"])
                 and any(first_person_commitment(s.quote) for s in evidence["assignee"])
             ):
-                speaker_id = next(iter(quoted_voices))
+                voice = next(iter(quoted_voices))
+                if speaker_id != voice:
+                    reasons.append("speaker_id_from_owner_quote")
+                speaker_id = voice
                 assignee = None
-                reasons.append("speaker_id_from_owner_quote")
         if speaker_id and (
             not generic_owner
             or not supported("assignee")
@@ -273,7 +319,7 @@ def ground_report(
             reasons.append(f"due:{due.resolution}")
         priority = entry.priority
         if priority != "unspecified" and not (
-            supported("priority") and explicit_priority(priority, evidence["priority"])
+            supported("priority") and explicit_priority(priority, entries_by_field["priority"])
         ):
             priority = "unspecified"
             reasons.append("unsupported_priority")

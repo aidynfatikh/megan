@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     whisper_cpp_bin: str = "whisper-cli"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3.5:4b"
+    llm_tokenizer_path: Path = Path("models/qwen3.5-tokenizer/tokenizer.json")
     llm_context: int = Field(default=16384, ge=2048, le=32768)
     llm_output_tokens: int = Field(default=3500, ge=256, le=8192)
     llm_timeout_sec: float = Field(default=300, gt=0, le=1800)

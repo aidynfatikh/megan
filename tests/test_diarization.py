@@ -228,6 +228,7 @@ async def test_diarization_runs_before_llm_and_is_saved_for_extraction_retry(
 
     await pipeline.run(new_job, tmp_path, checkpoint)
     assert events == ["unload", "diarize", "extract"]
+    assert (tmp_path / "extraction.draft.json").is_file()
     assert new_job.diarization_status == "done"
     assert new_job.provenance.diarization_backend == "sortformer_nemo"
     assert new_job.provenance.diarization_model_sha256 == "a" * 64

@@ -43,7 +43,10 @@ class Settings(BaseSettings):
     llm_timeout_sec: float = Field(default=300, gt=0, le=1800)
     stage_timeout_sec: float = Field(default=600, gt=0, le=3600)
     max_duration_sec: float = Field(default=1800, gt=0, le=7200)
-    max_upload_mb: int = Field(default=100, ge=1, le=1000)
+    # Duration is the governing policy, so the size cap must not reject a recording that is
+    # inside it: 30 minutes of 44.1 kHz stereo 16-bit WAV is about 318 MB. At 100 MB the same
+    # meeting was refused past roughly 9 minutes purely for being uncompressed.
+    max_upload_mb: int = Field(default=350, ge=1, le=1000)
     diarization_backend: Literal["none", "sortformer_nemo", "sortformer_cpp"] = "none"
     diarization_model_path: Path = Path("models/diar_streaming_sortformer_4spk-v2.nemo")
     # An external interpreter lets Fatikh preserve his working NeMo environment.

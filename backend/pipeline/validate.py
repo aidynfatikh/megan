@@ -54,6 +54,41 @@ def first_person_commitment(quote):
     return bool(re.match(r"^(?:i(?:['’]ll|\s+will)\b|я\b|мен\b)", normalize(quote).lstrip('"“«')))
 
 
+# Whisper splits continuous speech at arbitrary points, so a model quoting one spoken phrase
+# can legitimately cross a segment boundary. Such a quote is still grounded: the words must run
+# contiguously and must begin in the cited segment, which stays far stricter than searching the
+# whole meeting. Without this, a formatting artifact was indistinguishable from invention and
+# discarded the owner and deadline it carried.
+SPAN_MAX_SEGMENTS = 4
+SPAN_MAX_GAP_SEC = 2.0
+
+# A claim is only as good as the words backing it. Single common tokens such as "и" appear in
+# almost every segment and support nothing, so thin claim evidence is surfaced for review. Action
+# fields keep their own stricter test: the owner, date or priority must appear inside the quote.
+MIN_CLAIM_QUOTE_CHARS = 10
+
+
+def matching_span(quote: str, segments: dict[str, Segment], segment_id: str) -> Segment | None:
+    """Return the last segment a contiguous quote covers, or None when it is unsupported."""
+    wanted = normalize(quote)
+    if not wanted:
+        return None
+    ordered = list(segments.values())
+    start = next((i for i, s in enumerate(ordered) if s.id == segment_id), None)
+    if start is None:
+        return None
+    joined = normalize(ordered[start].text)
+    if wanted in joined:
+        return ordered[start]
+    for index in range(start + 1, min(start + SPAN_MAX_SEGMENTS, len(ordered))):
+        if ordered[index].start - ordered[index - 1].end > SPAN_MAX_GAP_SEC:
+            break
+        joined = f"{joined} {normalize(ordered[index].text)}"
+        if wanted in joined:
+            return ordered[index]
+    return None
+
+
 def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field: str):
     sources, reasons = [], []
     refs_valid = quotes_match = bool(evidence)
@@ -61,17 +96,22 @@ def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field:
         reasons.append(f"missing_evidence:{field}")
     for entry in evidence:
         segment = segments.get(entry.segment_id)
+        last = None
         if segment is None:
             refs_valid = quotes_match = False
             reasons.append(f"invalid_reference:{field}")
-        elif not normalize(entry.quote) or normalize(entry.quote) not in normalize(segment.text):
-            quotes_match = False
-            reasons.append(f"quote_mismatch:{field}")
+        else:
+            last = matching_span(entry.quote, segments, entry.segment_id)
+            if last is None:
+                quotes_match = False
+                reasons.append(f"quote_mismatch:{field}")
+            elif field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+                reasons.append(f"weak_evidence:{field}")
         sources.append(
             Source(
                 **entry.model_dump(),
                 start=segment.start if segment else None,
-                end=segment.end if segment else None,
+                end=(last or segment).end if segment else None,
             )
         )
     return sources, Checks(references_valid=refs_valid, quotes_match=quotes_match), reasons
@@ -181,6 +221,13 @@ def ground_report(
         if assignee and not supported("assignee", assignee):
             assignee = None
             reasons.append("unsupported_assignee")
+
+        def within_cited_segment(source, segments=segments):
+            # A quote that continued into later segments cannot fix a voice: the first-person
+            # wording may belong to whoever spoke the continuation.
+            segment = segments.get(source.segment_id)
+            return segment is not None and source.end == segment.end
+
         speaker_id = entry.speaker_id
         generic_owner = entry.assignee is None or bool(
             re.fullmatch(r"(?:speaker|говорящий|сөйлеуші)[ _-]*\d+", normalize(entry.assignee))
@@ -190,6 +237,7 @@ def ground_report(
             if (
                 len(quoted_voices) == 1
                 and None not in quoted_voices
+                and all(within_cited_segment(s) for s in evidence["assignee"])
                 and any(first_person_commitment(s.quote) for s in evidence["assignee"])
             ):
                 speaker_id = next(iter(quoted_voices))
@@ -199,7 +247,7 @@ def ground_report(
             not generic_owner
             or not supported("assignee")
             or not all(
-                segments[s.segment_id].speaker_id == speaker_id
+                segments[s.segment_id].speaker_id == speaker_id and within_cited_segment(s)
                 for s in evidence["assignee"]
                 if s.segment_id in segments
             )

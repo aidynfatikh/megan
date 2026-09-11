@@ -22,9 +22,24 @@ from backend.pipeline.dates import resolve_due
         ("by September 18, 2026", None, date(2026, 9, 18), "explicit"),
         ("18 сентября 2026 года", None, date(2026, 9, 18), "explicit"),
         ("2026 жылғы 18 қыркүйек", None, date(2026, 9, 18), "explicit"),
-        ("September 18", None, None, "ambiguous"),
+        ("September 18", None, None, "needs_meeting_date"),
+        # 2026-09-11 is itself a Friday: the speaker could mean today or the next one.
         ("до пятницы", date(2026, 9, 11), None, "ambiguous"),
-        ("Friday", date(2026, 9, 10), None, "ambiguous"),
+        # 2026-09-10 is a Thursday, so the intended Friday is determinate.
+        ("Friday", date(2026, 9, 10), date(2026, 9, 11), "relative"),
+        ("до пятницы", date(2026, 9, 7), date(2026, 9, 11), "relative"),
+        ("жұмаға дейін", date(2026, 9, 7), date(2026, 9, 11), "relative"),
+        ("в понедельник", date(2026, 9, 11), date(2026, 9, 14), "relative"),
+        # "next Friday" is the genuinely ambiguous English form and must stay raw.
+        ("next friday", date(2026, 9, 7), None, "ambiguous"),
+        ("до 18 сентября", date(2026, 9, 11), date(2026, 9, 18), "relative"),
+        ("18 қыркүйек", date(2026, 9, 11), date(2026, 9, 18), "relative"),
+        # A day/month already past rolls to the next occurrence, never backwards.
+        ("1 марта", date(2026, 9, 11), date(2027, 3, 1), "relative"),
+        ("September 18", date(2026, 9, 11), date(2026, 9, 18), "relative"),
+        # Kazakh Saturday must not be matched inside Monday/Tuesday/Wednesday/Thursday/Sunday.
+        ("сенбі", date(2026, 9, 11), date(2026, 9, 12), "relative"),
+        ("дүйсенбі", date(2026, 9, 11), date(2026, 9, 14), "relative"),
         ("завтра", None, None, "needs_meeting_date"),
         ("скоро", date(2026, 9, 11), None, "ambiguous"),
         ("2026-02-30", None, None, "ambiguous"),

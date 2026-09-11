@@ -2,7 +2,7 @@ import re
 
 from backend.pipeline.structure import Ollama
 from backend.pipeline.validate import check_sources
-from backend.schemas import ChatAnswer, Segment
+from backend.schemas import ChatAnswer, Segment, Speaker
 
 STOPWORDS = set(
     "what who when where why how did does do the a an is are was were to for of about in on and что кто когда где как это о об и в на по с из ли сказал said meeting встрече".split()
@@ -65,11 +65,53 @@ def retrieve(question: str, segments: list[Segment], limit=SEEDS * 3):
     return [segments[i] for i in sorted(list(selected)[:limit])]
 
 
-async def answer_question(ollama: Ollama, question: str, segments: list[Segment]) -> ChatAnswer:
-    selected = retrieve(question, segments)
+def speaker_scope(question: str, speakers: list[Speaker]) -> set[str] | None:
+    """Resolve explicit voice labels and named speech questions, not named task owners.
+
+    Display ordinals are one-based; stored IDs are opaque. Unknown ordinals produce an
+    empty scope rather than falling back to a different speaker's words.
+    """
+    text = question.casefold()
+    labels = re.findall(r"\b(?:speaker|спикер)\s+([0-9]+|[a-dа-г])\b", text)
+    labels += re.findall(r"\b([0-9]+)[-\s]спикер\b", text)
+    ids: set[str] = set()
+    for label in labels:
+        index = (
+            int(label) - 1
+            if label.isdigit()
+            else ("abcd".index(label) if label in "abcd" else "абвг".index(label))
+        )
+        if not 0 <= index < len(speakers):
+            return set()
+        ids.add(speakers[index].id)
+    if labels:
+        return ids
+    # A person's name in 'what must Dana do?' is an assignee, not the diarized author.
+    if re.search(r"\b(?:say|said|says|mention\w*|сказ\w*|говор\w*|айт\w*)\b", text):
+        for speaker in speakers:
+            if re.search(r"(?<!\w)" + re.escape(speaker.name.casefold()) + r"(?!\w)", text):
+                ids.add(speaker.id)
+        if ids:
+            # Duplicate display names cannot identify a voice reliably.
+            names = [s.name.casefold() for s in speakers if s.id in ids]
+            return ids if len(names) == len(set(names)) else set()
+    return None
+
+
+async def answer_question(
+    ollama: Ollama,
+    question: str,
+    segments: list[Segment],
+    speakers: list[Speaker] | None = None,
+    speaker_id: str | None = None,
+) -> ChatAnswer:
+    speakers = speakers or []
+    scope = {speaker_id} if speaker_id is not None else speaker_scope(question, speakers)
+    candidates = segments if scope is None else [s for s in segments if s.speaker_id in scope]
+    selected = retrieve(question, candidates)
     if not selected:
         return ChatAnswer(answer="Not found in this meeting.", citations=[], supported=False)
-    result = await ollama.answer(question, selected)
+    result = await ollama.answer(question, selected, speakers)
     citations, checks, _ = check_sources(result.evidence, {s.id: s for s in selected}, "answer")
     if not checks.references_valid or not checks.quotes_match:
         return ChatAnswer(

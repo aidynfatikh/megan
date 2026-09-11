@@ -30,6 +30,7 @@ import { Transcript } from "./components/Transcript";
 import { ProcessingStages } from "./components/ProcessingStages";
 import { Dashboard } from "./components/Dashboard";
 import { Brand } from "./components/Brand";
+import { NotionExport } from "./components/NotionExport";
 import { ProcessingStatus } from "./components/ProcessingStatus";
 import { MeetingListSkeleton, MeetingSkeleton } from "./components/Skeletons";
 import { useLocalHealth } from "./useLocalHealth";
@@ -91,6 +92,7 @@ export default function Workspace({ route }: { route: string }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [clock, setClock] = useState(Date.now());
   const [question, setQuestion] = useState("");
+  const [chatSpeaker, setChatSpeaker] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [asking, setAsking] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
@@ -176,6 +178,7 @@ export default function Workspace({ route }: { route: string }) {
     setEditing(null);
     setAnswer(null);
     setQuestion("");
+    setChatSpeaker("");
     setCurrentTime(0);
     setTab("report");
     setError("");
@@ -316,12 +319,19 @@ export default function Workspace({ route }: { route: string }) {
     goTo("/example");
   }
 
-  async function upload(file: File, meetingDate: string, language: string) {
+  async function upload(
+    file: File,
+    meetingDate: string,
+    language: string,
+    spokenLanguage?: string,
+  ) {
     const uploadRoute = window.location.hash;
     setSubmitting(true);
     setError("");
     try {
-      const next = await api.upload(file, meetingDate, language);
+      const next = await (spokenLanguage
+        ? api.upload(file, meetingDate, language, spokenLanguage)
+        : api.upload(file, meetingDate, language));
       protectCapture(false);
       if (window.location.hash === uploadRoute) selectJob(next);
       setHistory((previous) => [next, ...previous]);
@@ -597,6 +607,14 @@ export default function Workspace({ route }: { route: string }) {
                   </button>
                 </div>
               )}
+              {job.provenance.demo ? (
+                <div className="example-banner">
+                  <FileText size={15} />
+                  <span>
+                    <strong>Recorded demo</strong> · {job.provenance.demo}
+                  </span>
+                </div>
+              ) : null}
               <div className="meeting-heading">
                 <div>
                   <h1>{report?.title ?? job.filename}</h1>
@@ -658,6 +676,13 @@ export default function Workspace({ route }: { route: string }) {
                 )}
               </div>
 
+              {report && !sample && job.status === "done" ? (
+                <NotionExport
+                  key={`${job.id}:${job.report_revision}`}
+                  jobId={job.id}
+                  revision={job.report_revision}
+                />
+              ) : null}
               {!sample && (
                 <div className="recording-bar">
                   <div className="recording-icon">
@@ -822,6 +847,48 @@ export default function Workspace({ route }: { route: string }) {
                       </span>
                       <h2>Ask this meeting</h2>
                     </div>
+                    <div className="chat-options">
+                      <label>
+                        Speaker
+                        <select
+                          aria-label="Chat speaker"
+                          value={chatSpeaker}
+                          onChange={(event) => {
+                            setChatSpeaker(event.target.value);
+                            setAnswer(null);
+                          }}
+                          disabled={asking}
+                        >
+                          <option value="">All speakers</option>
+                          {job.speakers.map((speaker) => (
+                            <option key={speaker.id} value={speaker.id}>
+                              {speaker.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        className="text-button"
+                        type="button"
+                        disabled={asking}
+                        onClick={() =>
+                          setQuestion(
+                            job.report_language === "ru"
+                              ? "Что решили по бюджету?"
+                              : job.report_language === "kk"
+                                ? "Бюджет туралы не шешілді?"
+                                : "What was decided about the budget?",
+                          )
+                        }
+                      >
+                        Try a budget question
+                      </button>
+                    </div>
+                    <p className="muted">
+                      Ask in Russian, Kazakh or English. Choose a speaker to
+                      search only their attributed words; rename voices in the
+                      transcript.
+                    </p>
                     <form
                       onSubmit={async (e) => {
                         e.preventDefault();
@@ -834,7 +901,9 @@ export default function Workspace({ route }: { route: string }) {
                           return;
                         setAsking(true);
                         try {
-                          const reply = await api.chat(job.id, question.trim());
+                          const reply = await (chatSpeaker
+                            ? api.chat(job.id, question.trim(), chatSpeaker)
+                            : api.chat(job.id, question.trim()));
                           if (activeJobId.current === job.id) setAnswer(reply);
                         } catch (err) {
                           setError((err as Error).message);

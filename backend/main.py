@@ -9,13 +9,23 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import Settings
 from backend.db import BusyError, ConflictError, Repository
+from backend.demo import seed_demo
 from backend.example import example_job
+from backend.notion import (
+    NotionConnect,
+    NotionError,
+    NotionExporter,
+    NotionExportRequest,
+    NotionResult,
+)
 from backend.pipeline.export import export_csv, export_ics
 from backend.pipeline.rag import answer_question
 from backend.pipeline.structure import ExtractionError, Ollama
@@ -29,6 +39,7 @@ logger = logging.getLogger(__name__)
 def create_app(settings: Settings | None = None, *, repository=None, pipeline=None):
     settings = settings or Settings()
     repo = repository or Repository(settings.database_url)
+    notion = NotionExporter(settings, repo)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -41,6 +52,8 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
                 await repo.migrate()
                 await repo.acquire_runner()
                 await repo.recover()
+                if settings.demo_seed_dir:
+                    await seed_demo(repo, settings.demo_seed_dir, settings.data_dir)
             app.state.database_ready = True
         except Exception:
             logger.exception(
@@ -73,6 +86,20 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
     @app.exception_handler(ExtractionError)
     async def extraction_error(request, exc):
         return JSONResponse({"detail": str(exc)}, status_code=503)
+
+    @app.exception_handler(NotionError)
+    async def notion_error(request, exc):
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request, exc):
+        if request.url.path == "/api/integrations/notion":
+            # Validation errors normally echo the input. Never reflect a credential.
+            return JSONResponse(
+                {"detail": "Enter a valid token and UUIDs for optional Notion IDs."},
+                status_code=422,
+            )
+        return await request_validation_exception_handler(request, exc)
 
     @app.middleware("http")
     async def request_limits(request, call_next):
@@ -141,6 +168,21 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
     async def example():
         return example_job()
 
+    @app.get("/api/integrations/notion")
+    async def notion_status():
+        return notion.status()
+
+    @app.post("/api/integrations/notion")
+    async def notion_connect(request: NotionConnect):
+        return await notion.connect(request)
+
+    @app.post("/api/jobs/{job_id}/notion", response_model=NotionResult)
+    async def notion_export(job_id: UUID, request: NotionExportRequest):
+        job = await get_job(job_id)
+        if job.report_revision != request.revision:
+            raise ConflictError("This report changed. Reload before exporting.")
+        return await notion.export(job)
+
     @app.get("/api/jobs", response_model=list[Job])
     async def list_jobs():
         require_database()
@@ -151,6 +193,7 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
         file: Annotated[UploadFile, File()],
         meeting_date: Annotated[date | None, Form()] = None,
         report_language: Annotated[Literal["ru", "kk", "en"], Form()] = "ru",
+        spoken_language: Annotated[Literal["auto", "ru", "kk", "en"] | None, Form()] = None,
     ):
         require_database()
         name = Path((file.filename or "").replace("\\", "/")).name
@@ -188,6 +231,7 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
                 updated_at=now,
                 meeting_date=meeting_date,
                 report_language=report_language,
+                spoken_language=spoken_language,
                 diarization_status="pending"
                 if settings.diarization_backend != "none"
                 else "disabled",
@@ -344,9 +388,15 @@ def create_app(settings: Settings | None = None, *, repository=None, pipeline=No
         job = await get_job(job_id)
         if job.status != "done":
             raise HTTPException(409, "Wait until the report is ready")
+        if request.speaker_id is not None and request.speaker_id not in {
+            s.id for s in job.speakers
+        }:
+            raise HTTPException(422, "Speaker not found in this meeting")
         app.state.runner.reserve()
         try:
-            return await answer_question(Ollama(settings), request.question, job.segments)
+            return await answer_question(
+                Ollama(settings), request.question, job.segments, job.speakers, request.speaker_id
+            )
         finally:
             app.state.runner.release()
 

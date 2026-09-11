@@ -1,0 +1,681 @@
+{
+  "schema_version": 1,
+  "id": "53ad78f8-3891-5750-b15b-d280451b8e1d",
+  "filename": "demo-two-speakers.wav",
+  "status": "done",
+  "stage": "done",
+  "created_at": "2026-09-11T08:11:25.102981Z",
+  "updated_at": "2026-09-11T08:12:38.387086Z",
+  "meeting_date": "2026-09-11",
+  "report_language": "en",
+  "duration_sec": 39.092375,
+  "elapsed_sec": 73.28131049999502,
+  "timings": {
+    "decode": 0.0421489579603076,
+    "analyze": 68.24499270803062,
+    "diarize": 1.7641775839729235,
+    "transcribe": 3.193881208950188,
+    "check_sources": 0.009057291958015412,
+    "release_models": 0.0131192909902893,
+    "speakers_ready": 0.0014777500182390213,
+    "transcript_ready": 0.001166250032838434,
+    "llm_eval_duration": 64.213564,
+    "llm_load_duration": 2.332529292,
+    "llm_prompt_eval_duration": 1.669422
+  },
+  "segments": [
+    {
+      "id": "S1",
+      "start": 0.0,
+      "end": 2.04,
+      "text": "Let's review the website launch.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S2",
+      "start": 2.04,
+      "end": 5.82,
+      "text": "The design is finished, but we still need an accessibility review.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S3",
+      "start": 5.82,
+      "end": 11.58,
+      "text": "Alex will prepare the launch copy by September 18th, 2026.",
+      "speaker_id": null,
+      "language": "en"
+    },
+    {
+      "id": "S4",
+      "start": 11.58,
+      "end": 15.38,
+      "text": "I'll check the keyboard navigation and focus indicators tomorrow.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    },
+    {
+      "id": "S5",
+      "start": 15.38,
+      "end": 20.7,
+      "text": "I will send the accessibility findings to the team when that review is complete.",
+      "speaker_id": null,
+      "language": "en"
+    },
+    {
+      "id": "S6",
+      "start": 20.7,
+      "end": 23.02,
+      "text": "I'll prepare the launch checklist tomorrow.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S7",
+      "start": 23.02,
+      "end": 27.1,
+      "text": "We agreed to wait for the accessibility review before releasing the website.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S8",
+      "start": 27.1,
+      "end": 29.82,
+      "text": "We are not launching this Friday.",
+      "speaker_id": null,
+      "language": "en"
+    },
+    {
+      "id": "S9",
+      "start": 29.82,
+      "end": 30.68,
+      "text": "Agreed.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    },
+    {
+      "id": "S10",
+      "start": 30.68,
+      "end": 33.32,
+      "text": "We will keep the current short copy format.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    },
+    {
+      "id": "S11",
+      "start": 33.32,
+      "end": 36.72,
+      "text": "We have not decided which analytics provider to use.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    },
+    {
+      "id": "S12",
+      "start": 36.72,
+      "end": 38.06,
+      "text": "That choice remains open.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "speaker_0",
+      "name": "Speaker 1",
+      "name_source": "anonymous"
+    },
+    {
+      "id": "speaker_1",
+      "name": "Speaker 2",
+      "name_source": "anonymous"
+    }
+  ],
+  "diarization_status": "done",
+  "report": {
+    "title": "Website Launch Review Meeting",
+    "summary": [
+      {
+        "id": "SUM1",
+        "text": "The website design is finished, but the launch requires an accessibility review before proceeding.",
+        "evidence": [
+          {
+            "segment_id": "S2",
+            "quote": "The design is finished, but we still need an accessibility review.",
+            "start": 2.04,
+            "end": 5.82
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM2",
+        "text": "Alex will prepare the launch copy by September 18th, 2026.",
+        "evidence": [
+          {
+            "segment_id": "S3",
+            "quote": "Alex will prepare the launch copy by September 18th, 2026.",
+            "start": 5.82,
+            "end": 11.58
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM3",
+        "text": "The team agreed to delay the release from this Friday until after the accessibility review is complete.",
+        "evidence": [
+          {
+            "segment_id": "S7",
+            "quote": "We agreed to wait for the accessibility review before releasing the website.",
+            "start": 23.02,
+            "end": 27.1
+          },
+          {
+            "segment_id": "S8",
+            "quote": "We are not launching this Friday.",
+            "start": 27.1,
+            "end": 29.82
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "topics": [
+      {
+        "id": "T1",
+        "title": "Accessibility Review",
+        "theses": [
+          {
+            "id": "T1.1",
+            "text": "The design is finished, but we still need an accessibility review.",
+            "evidence": [
+              {
+                "segment_id": "S2",
+                "quote": "The design is finished, but we still need an accessibility review.",
+                "start": 2.04,
+                "end": 5.82
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T1.2",
+            "text": "I will send the accessibility findings to the team when that review is complete.",
+            "evidence": [
+              {
+                "segment_id": "S5",
+                "quote": "I will send the accessibility findings to the team when that review is complete.",
+                "start": 15.38,
+                "end": 20.7
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "T2",
+        "title": "Launch Schedule",
+        "theses": [
+          {
+            "id": "T2.1",
+            "text": "We agreed to wait for the accessibility review before releasing the website.",
+            "evidence": [
+              {
+                "segment_id": "S7",
+                "quote": "We agreed to wait for the accessibility review before releasing the website.",
+                "start": 23.02,
+                "end": 27.1
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T2.2",
+            "text": "We are not launching this Friday.",
+            "evidence": [
+              {
+                "segment_id": "S8",
+                "quote": "We are not launching this Friday.",
+                "start": 27.1,
+                "end": 29.82
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "T3",
+        "title": "Launch Content and Analytics",
+        "theses": [
+          {
+            "id": "T3.1",
+            "text": "Alex will prepare the launch copy by September 18th, 2026.",
+            "evidence": [
+              {
+                "segment_id": "S3",
+                "quote": "Alex will prepare the launch copy by September 18th, 2026.",
+                "start": 5.82,
+                "end": 11.58
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T3.2",
+            "text": "We have not decided which analytics provider to use.",
+            "evidence": [
+              {
+                "segment_id": "S11",
+                "quote": "We have not decided which analytics provider to use.",
+                "start": 33.32,
+                "end": 36.72
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          },
+          {
+            "id": "T3.3",
+            "text": "That choice remains open.",
+            "evidence": [
+              {
+                "segment_id": "S12",
+                "quote": "That choice remains open.",
+                "start": 36.72,
+                "end": 38.06
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "id": "D1",
+        "text": "We agreed to wait for the accessibility review before releasing the website.",
+        "evidence": [
+          {
+            "segment_id": "S7",
+            "quote": "We agreed to wait for the accessibility review before releasing the website.",
+            "start": 23.02,
+            "end": 27.1
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "D2",
+        "text": "We are not launching this Friday.",
+        "evidence": [
+          {
+            "segment_id": "S8",
+            "quote": "We are not launching this Friday.",
+            "start": 27.1,
+            "end": 29.82
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "D3",
+        "text": "We will keep the current short copy format.",
+        "evidence": [
+          {
+            "segment_id": "S10",
+            "quote": "We will keep the current short copy format.",
+            "start": 30.68,
+            "end": 33.32
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "open_questions": [
+      {
+        "id": "Q1",
+        "text": "Which analytics provider to use.",
+        "evidence": [
+          {
+            "segment_id": "S11",
+            "quote": "We have not decided which analytics provider to use.",
+            "start": 33.32,
+            "end": 36.72
+          },
+          {
+            "segment_id": "S12",
+            "quote": "That choice remains open.",
+            "start": 36.72,
+            "end": 38.06
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "risks": [],
+    "action_items": [
+      {
+        "id": "A1",
+        "task": "Prepare the launch copy",
+        "assignee": "Alex",
+        "speaker_id": null,
+        "due": {
+          "raw": "September 18th, 2026",
+          "date": "2026-09-18",
+          "resolution": "explicit"
+        },
+        "priority": "unspecified",
+        "conditions": [],
+        "evidence": {
+          "due": [
+            {
+              "segment_id": "S3",
+              "quote": "September 18th, 2026",
+              "start": 5.82,
+              "end": 11.58
+            }
+          ],
+          "task": [
+            {
+              "segment_id": "S3",
+              "quote": "Alex will prepare the launch copy by September 18th, 2026.",
+              "start": 5.82,
+              "end": 11.58
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S3",
+              "quote": "Alex will prepare the launch copy by September 18th, 2026.",
+              "start": 5.82,
+              "end": 11.58
+            }
+          ],
+          "priority": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        },
+        "edited_fields": []
+      },
+      {
+        "id": "A2",
+        "task": "Check keyboard navigation and focus indicators",
+        "assignee": null,
+        "speaker_id": "speaker_1",
+        "due": {
+          "raw": "tomorrow",
+          "date": "2026-09-12",
+          "resolution": "relative"
+        },
+        "priority": "unspecified",
+        "conditions": [],
+        "evidence": {
+          "due": [
+            {
+              "segment_id": "S4",
+              "quote": "tomorrow",
+              "start": 11.58,
+              "end": 15.38
+            }
+          ],
+          "task": [
+            {
+              "segment_id": "S4",
+              "quote": "I'll check the keyboard navigation and focus indicators tomorrow.",
+              "start": 11.58,
+              "end": 15.38
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S4",
+              "quote": "I'll check the keyboard navigation and focus indicators tomorrow.",
+              "start": 11.58,
+              "end": 15.38
+            }
+          ],
+          "priority": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "needs_review",
+          "reasons": [
+            "unsupported_assignee",
+            "speaker_id_from_owner_quote",
+            "speaker_assignment_needs_review"
+          ]
+        },
+        "edited_fields": []
+      },
+      {
+        "id": "A3",
+        "task": "Send accessibility findings to the team",
+        "assignee": null,
+        "speaker_id": null,
+        "due": {
+          "raw": null,
+          "date": null,
+          "resolution": "not_stated"
+        },
+        "priority": "unspecified",
+        "conditions": [
+          "accessibility review is complete"
+        ],
+        "evidence": {
+          "due": [],
+          "task": [
+            {
+              "segment_id": "S5",
+              "quote": "I will send the accessibility findings to the team when that review is complete.",
+              "start": 15.38,
+              "end": 20.7
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S5",
+              "quote": "I will send the accessibility findings to the team when that review is complete.",
+              "start": 15.38,
+              "end": 20.7
+            }
+          ],
+          "priority": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "needs_review",
+          "reasons": [
+            "unsupported_assignee"
+          ]
+        },
+        "edited_fields": []
+      },
+      {
+        "id": "A4",
+        "task": "Prepare the launch checklist",
+        "assignee": null,
+        "speaker_id": "speaker_0",
+        "due": {
+          "raw": "tomorrow",
+          "date": "2026-09-12",
+          "resolution": "relative"
+        },
+        "priority": "unspecified",
+        "conditions": [],
+        "evidence": {
+          "due": [
+            {
+              "segment_id": "S6",
+              "quote": "tomorrow",
+              "start": 20.7,
+              "end": 23.02
+            }
+          ],
+          "task": [
+            {
+              "segment_id": "S6",
+              "quote": "I'll prepare the launch checklist tomorrow.",
+              "start": 20.7,
+              "end": 23.02
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S6",
+              "quote": "I'll prepare the launch checklist tomorrow.",
+              "start": 20.7,
+              "end": 23.02
+            }
+          ],
+          "priority": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "needs_review",
+          "reasons": [
+            "unsupported_assignee",
+            "speaker_id_from_owner_quote",
+            "speaker_assignment_needs_review"
+          ]
+        },
+        "edited_fields": []
+      }
+    ],
+    "content_status": "ready"
+  },
+  "report_revision": 1,
+  "attempt": 1,
+  "warnings": [
+    "Speaker separation supports up to four voices; labels need review. 3 of 12 transcript segments have unknown attribution."
+  ],
+  "error": null,
+  "provenance": {
+    "asr_backend": "whisper_cpp",
+    "asr_model": "ggml-large-v3-turbo.bin",
+    "llm": "qwen3.5:4b",
+    "llm_digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+    "diarization_backend": "sortformer_cpp",
+    "diarization_model": "diar_streaming_sortformer_4spk-v2.q8_0.gguf",
+    "diarization_model_sha256": "0679cfeb1ce356d0dea9470b31274f4bfc7eb927497d82005483770666da998a",
+    "diarization_runtime": "nemo-speech 0.1.0",
+    "sample": false,
+    "demo": "Prerecorded synthetic speech. This saved report was generated on the Mac; it is not a new Docker model run."
+  }
+}

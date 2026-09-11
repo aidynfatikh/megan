@@ -6,9 +6,11 @@ A local meeting workspace: record your microphone or upload MP3, WAV, or M4A; re
 
 The demo target is **Fatikh's RTX 4060 laptop**. Development uses the M5 Mac with a different Whisper runtime. GPU compatibility and demo speed must be measured on Fatikh's machine. See [verification evidence](docs/VERIFICATION.md) and the [case analysis](docs/ANALYSIS.md).
 
+**Complete Docker app:** with models already installed, run `docker compose -f compose.app.yaml up -d --build --wait`, then open **http://127.0.0.1:8766/#/workspace**. Two recorded demos are included, with playable audio and saved reports. Speaker-aware chat and explicit Notion export are available on completed recordings. See [Docker setup and Notion connection](docs/DOCKER.md) for first-time downloads, persistence and CPU/GPU differences.
+
 ## What to push
 
-Push code, locks, migrations, scripts, and documentation. Fatikh pulls the code, installs dependencies, downloads models on his machine, and runs the tests below. **Do not commit weights, recordings, `.env`, or PostgreSQL data.** Each laptop has its own local database; SQLite is not used.
+Push code, locks, migrations, scripts, and documentation. Fatikh pulls the code, installs dependencies, downloads models on his machine, and runs the tests below. **Do not commit weights, user recordings, `.env`, or PostgreSQL data.** The original synthetic recordings in `demo/` are an intentional, labelled exception. Each laptop has its own local database; SQLite is not used.
 
 ## Setup while online
 
@@ -159,3 +161,5 @@ On failure, open **System status**, inspect terminal logs, and fix the missing s
 “Source linked” means exact text was located in the transcript, not that the claim was semantically or acoustically verified. Unknown owner/priority/date values stay unknown. An owner or deadline citation recovered from exact words in a task quotation is visibly marked for review. Ambiguous weekday/year wording is not guessed. The example report is explicitly illustrative and has no recorded audio.
 
 Automatic speaker naming, dense embeddings, specialized Kazakh re-decoding, PDF output, and long-meeting chunking are deferred. This release provides transcription/reporting, optional Sortformer speaker labels with manual renaming, task edits, JSON/CSV/ICS, and cited keyword-based meeting chat.
+
+For faster report generation on Apple Silicon, use the optional [Mac Docker mode](docs/DOCKER.md#faster-docker-app-on-this-mac).

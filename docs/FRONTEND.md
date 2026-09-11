@@ -125,3 +125,10 @@ Verification: 33 frontend tests, formatting, and production build passed. Browse
 Sidebar collapse keeps the logo, icon column, padding, and button heights fixed while the panel changes width. Focus moves between the toggles without scrolling the clipped header. Browser animation checks at 1440px and 900px measured no horizontal or vertical movement of the mark or navigation icons in either direction; the mobile drawer still fits at 390px. All 33 frontend tests and the production build passed after the adjustment.
 
 The sample-report shortcut now sits in the sidebar footer on every workspace page, replacing the empty-library banner. It becomes a labeled report icon in the collapsed rail, stays anchored during collapse, and appears with its full label in the mobile drawer. It uses the existing sample-report route and closes the mobile drawer on selection.
+
+## Latest additions
+
+Meeting chat supports a speaker selector and example questions using speaker labels or
+manual names. Uploads have separate spoken-language and report-language controls.
+Completed recordings offer an explicit Notion export with local connection settings.
+Docker starts with two playable recorded demos; see [DOCKER.md](DOCKER.md).

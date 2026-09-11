@@ -175,6 +175,7 @@ class Provenance(Model):
     diarization_model_sha256: str | None = None
     diarization_runtime: str | None = None
     sample: bool = False
+    demo: str | None = None
 
 
 class Job(Model):
@@ -187,6 +188,7 @@ class Job(Model):
     updated_at: datetime
     meeting_date: Date | None = None
     report_language: Literal["ru", "kk", "en"] = "ru"
+    spoken_language: Literal["auto", "ru", "kk", "en"] | None = None
     duration_sec: float | None = None
     elapsed_sec: float = 0
     timings: dict[str, float] = Field(default_factory=dict)
@@ -216,6 +218,7 @@ class SpeakerPatch(Model):
 
 class ChatRequest(Model):
     question: str = Field(min_length=1, max_length=1000)
+    speaker_id: str | None = Field(default=None, max_length=100)
 
 
 class ChatDraft(Model):

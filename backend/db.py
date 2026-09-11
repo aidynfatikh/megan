@@ -138,3 +138,35 @@ class Repository:
             )
             job.status = "interrupted"
             await self.save(job)
+
+    async def notion_export(self, job_id, revision, data_source_id):
+        async with self.pool.connection() as conn:
+            return await (
+                await conn.execute(
+                    "SELECT state, page_id, url FROM notion_exports WHERE job_id=%s AND revision=%s AND data_source_id=%s",
+                    (job_id, revision, data_source_id),
+                )
+            ).fetchone()
+
+    async def begin_notion_export(self, job_id, revision, data_source_id):
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO notion_exports(job_id, revision, data_source_id, state) VALUES (%s,%s,%s,'pending')",
+                (job_id, revision, data_source_id),
+            )
+
+    async def finish_notion_export(self, job_id, revision, data_source_id, page_id, url):
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO notion_exports(job_id,revision,data_source_id,state,page_id,url) "
+                "VALUES (%s,%s,%s,'done',%s,%s) ON CONFLICT (job_id,revision,data_source_id) "
+                "DO UPDATE SET state='done', page_id=excluded.page_id, url=excluded.url",
+                (job_id, revision, data_source_id, page_id, url),
+            )
+
+    async def cancel_notion_export(self, job_id, revision, data_source_id):
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "DELETE FROM notion_exports WHERE job_id=%s AND revision=%s AND data_source_id=%s AND state='pending'",
+                (job_id, revision, data_source_id),
+            )

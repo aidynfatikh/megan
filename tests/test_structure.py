@@ -18,6 +18,22 @@ EMPTY = {
 }
 
 
+async def test_chat_prompt_preserves_voice_identity_and_current_names():
+    from unittest.mock import AsyncMock
+
+    from backend.schemas import ChatDraft, Speaker
+
+    client = Ollama(Settings(_env_file=None))
+    client.generate = AsyncMock(return_value=ChatDraft(answer="Not found", evidence=[]))
+    segments = [Segment(id="S7", start=2, end=4, text="Approved.", speaker_id="speaker_0")]
+    await client.answer("Who approved?", segments, [Speaker(id="speaker_0", name="Дана")])
+    first = client.generate.call_args.args[0]
+    assert "speaker_0" in str(first) and "Дана" in str(first)
+    segments[0].speaker_id = "speaker_1"
+    await client.answer("Who approved?", segments, [Speaker(id="speaker_0", name="Дана")])
+    assert first != client.generate.call_args.args[0]
+
+
 async def test_extraction_uses_local_schema_and_nonstreaming_without_thinking(respx_mock):
     route = respx_mock.post("http://127.0.0.1:11434/api/chat").mock(
         return_value=httpx.Response(

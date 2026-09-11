@@ -1,0 +1,14 @@
+# Faster Apple Silicon mode: Docker app/database/speech runtimes, native local
+# Ollama using Metal. Start scripts/run_ollama.sh on the Mac first.
+services:
+  ollama:
+    image: megan-demo-app
+    entrypoint: ["socat"]
+    command:
+      - "TCP-LISTEN:11434,bind=127.0.0.1,fork,reuseaddr"
+      - "TCP:host.docker.internal:${MAC_OLLAMA_PORT:-11435}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:11434/api/tags', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20

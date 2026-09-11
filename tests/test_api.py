@@ -13,6 +13,50 @@ from backend.schemas import DraftReport, Segment
 pytestmark = pytest.mark.integration
 
 
+async def test_chat_passes_current_speaker_names_and_scope(api, repository, new_job, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from backend.schemas import ChatAnswer, Report, Speaker
+
+    new_job.status = "done"
+    new_job.report = Report(title="Voice review")
+    new_job.speakers = [Speaker(id="speaker_0", name="Дана", name_source="user_edit")]
+    new_job.segments = [
+        Segment(id="S1", start=0, end=1, speaker_id="speaker_0", text="Бюджет не утверждён.")
+    ]
+    await repository.create(new_job)
+    await repository.save(new_job, new_revision=True)
+    answer = AsyncMock(
+        return_value=ChatAnswer(answer="Не утверждён", citations=[], supported=False)
+    )
+    monkeypatch.setattr("backend.main.answer_question", answer)
+    client, _ = api
+    response = await client.post(
+        f"/api/jobs/{new_job.id}/chat",
+        json={"question": "Что с бюджетом?", "speaker_id": "speaker_0"},
+    )
+    assert response.status_code == 200
+    assert answer.call_args.args[3] == new_job.speakers
+    assert answer.call_args.args[4] == "speaker_0"
+    response = await client.post(
+        f"/api/jobs/{new_job.id}/chat",
+        json={"question": "Что с бюджетом?", "speaker_id": "unknown"},
+    )
+    assert response.status_code == 422
+
+
+async def test_notion_export_rejects_a_stale_displayed_revision(api, repository, new_job):
+    from backend.schemas import Report
+
+    new_job.status = "done"
+    new_job.report = Report(title="Current report")
+    await repository.create(new_job)
+    await repository.save(new_job, new_revision=True)
+    client, _ = api
+    response = await client.post(f"/api/jobs/{new_job.id}/notion", json={"revision": 2})
+    assert response.status_code == 409
+
+
 class TestPipeline:
     __test__ = False
 

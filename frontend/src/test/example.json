@@ -8,6 +8,7 @@
   "updated_at": "2026-09-11T09:00:00Z",
   "meeting_date": "2026-09-11",
   "report_language": "en",
+  "spoken_language": null,
   "duration_sec": 60.0,
   "elapsed_sec": 0.0,
   "timings": {},
@@ -409,6 +410,7 @@
     "diarization_model": null,
     "diarization_model_sha256": null,
     "diarization_runtime": null,
-    "sample": true
+    "sample": true,
+    "demo": null
   }
 }

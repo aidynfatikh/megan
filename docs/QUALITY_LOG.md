@@ -239,3 +239,31 @@ After restarting the isolated API on the final code, job `892b425f-d30d-4435-9a4
 The report contains **zero personal tasks and zero confirmed decisions**. Its three unsupported decision candidates are excluded, with the expected visible decision-review warning. The generated summary/advice remains available. JSON (26,867 bytes), CSV (87 bytes), and ICS (114 bytes) exports returned 200; the original-audio range returned 206 with 64 bytes. The empty calendar is correct for this no-assignment input. Provenance confirms turbo, Sortformer 0.1.0, and Qwen3.5:4b with the recorded digest. Artifacts: `final-gate-api/russian-human/`.
 
 All inference continued on the loopback-only API/Ollama processes; source acquisition happened separately. The API is left available for rehearsal. Local verification and handoff are complete; live microphone, noisy venue, and RTX acceptance remain explicitly unverified.
+
+## Docker, speaker chat and Notion verification — 2026-09-11
+
+- Complete Docker image built and ran on Apple Silicon. A fresh 27.97-second
+  synthetic Russian recording completed entirely inside Docker in 385.38 seconds:
+  Whisper 32.73 s, Sortformer 8.12 s, report generation 343.54 s.
+- The report correctly extracted Dana's single task, explicit 2026-09-18 deadline,
+  Russian-language decision, microphone risk and unresolved microphone choice.
+  ASR misheard “бюджет на оборудование” as “бюджетное оборудование”; the report
+  retained this error and added an unsupported causal link in one topic thesis.
+  This is a controlled smoke test, not proof of unattended quality.
+- Optional Mac mode ran successfully: Docker app and speech runtimes with native
+  Ollama on the Mac GPU. A Russian speaker-scoped microphone question returned the
+  correct S6 quotation in 5.51 seconds. Three additional native model checks covered
+  Speaker 1, Speaker 2 and a manually renamed speaker.
+- JSON, CSV and ICS downloads returned 200; audio byte-range playback returned 206.
+  Saved meetings and the Notion connection survived container replacement.
+- Real Notion export created a report page; readback contained 79 blocks. Re-export
+  after restart reused the same page and revision. No hosted Notion Worker is needed.
+- Final local checks after integrating concurrent main changes: 233 backend tests passed (14 model tests excluded from this
+  normal suite), 37 frontend tests passed, production build and Ruff checks passed.
+  Browser verification covered source playback, Notion export and mobile layout.
+- Natural Kazakh code-switch diagnostic remains weak: 49% WER in automatic mode,
+  38% with Kazakh forced, over six clips / 100 reference words. See
+  [MULTILINGUAL_TEST.md](MULTILINGUAL_TEST.md). RTX and noisy-venue acceptance remain
+  unverified. The presentation will use completed reports, not live processing.
+
+Startup and configuration: [DOCKER.md](DOCKER.md).

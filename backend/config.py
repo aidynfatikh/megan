@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = "postgresql://megan:megan@127.0.0.1:54329/megan"
     data_dir: Path = Path("data")
+    demo_seed_dir: Path | None = None
     frontend_dir: Path = Path("frontend/dist")
     asr_backend: Literal["faster_whisper", "whisper_cpp"] = (
         "whisper_cpp" if platform.system() == "Darwin" else "faster_whisper"
@@ -58,6 +59,8 @@ class Settings(BaseSettings):
     nemo_speech_bin: str = "nemo-speech"
     diarization_device: Literal["cpu", "cuda", "metal"] = "cpu"
     enable_chat: bool = True
+    notion_api_token: SecretStr = SecretStr("")
+    notion_data_source_id: str = ""
 
     @field_validator("ollama_base_url")
     @classmethod

@@ -1065,3 +1065,63 @@
     transition: none !important;
   }
 }
+.notion-panel {
+  margin: 16px 0;
+  padding: 18px 22px;
+}
+.notion-heading,
+.notion-buttons,
+.chat-options {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.notion-heading {
+  justify-content: space-between;
+}
+.notion-heading p {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+.notion-setup {
+  display: grid;
+  gap: 12px;
+  max-width: 620px;
+  margin-top: 18px;
+}
+.notion-setup label,
+.chat-options label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.notion-setup input,
+.chat-options select {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface, white);
+  color: inherit;
+  font: inherit;
+}
+.notion-panel [role="alert"] {
+  color: #a33428;
+  font-size: 13px;
+}
+.notion-panel [role="status"] {
+  font-size: 13px;
+}
+.notion-panel [role="status"] a {
+  text-decoration: underline;
+  margin-left: 8px;
+}
+.chat-options {
+  margin: 16px 0 10px;
+}
+.chat-options label {
+  min-width: 160px;
+}
+.spoken-language { display: grid; gap: 6px; font-size: 12px; max-width: 280px; }
+.spoken-language select { padding: 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface, white); color: inherit; font: inherit; }

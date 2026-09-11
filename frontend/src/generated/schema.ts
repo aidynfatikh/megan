@@ -38,6 +38,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/integrations/notion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Notion Status */
+    get: operations["notion_status_api_integrations_notion_get"];
+    put?: never;
+    /** Notion Connect */
+    post: operations["notion_connect_api_integrations_notion_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/jobs/{job_id}/notion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Notion Export */
+    post: operations["notion_export_api_jobs__job_id__notion_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/jobs": {
     parameters: {
       query?: never;
@@ -251,11 +286,15 @@ export interface components {
        * @enum {string}
        */
       report_language: "ru" | "kk" | "en";
+      /** Spoken Language */
+      spoken_language?: ("auto" | "ru" | "kk" | "en") | null;
     };
     /** ChatRequest */
     ChatRequest: {
       /** Question */
       question: string;
+      /** Speaker Id */
+      speaker_id?: string | null;
     };
     /** Checks */
     Checks: {
@@ -349,6 +388,8 @@ export interface components {
        * @enum {string}
        */
       report_language: "ru" | "kk" | "en";
+      /** Spoken Language */
+      spoken_language: ("auto" | "ru" | "kk" | "en") | null;
       /** Duration Sec */
       duration_sec: number | null;
       /**
@@ -401,6 +442,34 @@ export interface components {
        */
       retryable: boolean;
     };
+    /** NotionConnect */
+    NotionConnect: {
+      /**
+       * Token
+       * Format: password
+       */
+      token: string;
+      /** Data Source Id */
+      data_source_id?: string | null;
+      /** Parent Page Id */
+      parent_page_id?: string | null;
+    };
+    /** NotionExportRequest */
+    NotionExportRequest: {
+      /** Revision */
+      revision: number;
+    };
+    /** NotionResult */
+    NotionResult: {
+      /** Url */
+      url: string;
+      /** Page Id */
+      page_id: string;
+      /** Revision */
+      revision: number;
+      /** Reused */
+      reused: boolean;
+    };
     /** Provenance */
     Provenance: {
       /** Asr Backend */
@@ -427,6 +496,8 @@ export interface components {
        * @default false
        */
       sample: boolean;
+      /** Demo */
+      demo: string | null;
     };
     /** Report */
     Report: {
@@ -575,6 +646,94 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["Job"];
+        };
+      };
+    };
+  };
+  notion_status_api_integrations_notion_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  notion_connect_api_integrations_notion_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotionConnect"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  notion_export_api_jobs__job_id__notion_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotionExportRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotionResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

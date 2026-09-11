@@ -439,3 +439,26 @@ def test_sub_word_flickers_do_not_block_attribution():
     assert align_speakers(segments, turns)[0][0].speaker_id is None
     kept = [t for t in turns if t.end - t.start >= MIN_TURN_SEC]
     assert align_speakers(segments, kept)[0][0].speaker_id == "speaker_0"
+
+
+def test_a_voice_that_owns_no_transcript_text_is_not_a_participant():
+    # A real monologue: one 0.48 s false alarm landed in the silence between two ASR segments,
+    # so it named a second participant who never held a line of the transcript.
+    segments = [
+        Segment(id="S1", start=112.14, end=115.06, text="Но откуда складывается эта ликвидность."),
+        Segment(id="S2", start=115.92, end=119.80, text="Потому что Халыку доверяют."),
+    ]
+    aligned, speakers = align_speakers(
+        segments,
+        [turn(112.08, 115.28, "a"), turn(115.28, 115.76, "b"), turn(115.92, 119.99, "a")],
+    )
+    assert [s.speaker_id for s in aligned] == ["speaker_0", "speaker_0"]
+    assert [(s.id, s.name) for s in speakers] == [("speaker_0", "Speaker 1")]
+
+
+def test_remaining_voices_are_numbered_by_first_appearance_in_the_transcript():
+    # The dropped voice speaks first, so the kept one must not inherit a gap in the numbering.
+    segments = [Segment(id="S1", start=10, end=14, text="A statement.")]
+    aligned, speakers = align_speakers(segments, [turn(0, 4, "early"), turn(10, 14, "late")])
+    assert aligned[0].speaker_id == "speaker_1"
+    assert [(s.id, s.name) for s in speakers] == [("speaker_1", "Speaker 1")]

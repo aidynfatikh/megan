@@ -64,7 +64,6 @@ def align_speakers(segments: list[Segment], turns: list[SpeakerTurn]):
         ids.setdefault(t.speaker, f"speaker_{len(ids)}")
     if len(ids) > 4:
         raise DiarizationError("This Sortformer checkpoint supports at most four speakers")
-    speakers = [Speaker(id=sid, name=f"Speaker {i}") for i, sid in enumerate(ids.values(), 1)]
     aligned = []
     for segment in segments:
         matching = [t for t in ordered if t.start < segment.end and t.end > segment.start]
@@ -80,7 +79,17 @@ def align_speakers(segments: list[Segment], turns: list[SpeakerTurn]):
             if covered / (segment.end - segment.start) >= SINGLE_VOICE_COVERAGE:
                 speaker_id = ids[next(iter(voices))]
         aligned.append(segment.model_copy(update={"speaker_id": speaker_id}))
-    return aligned, speakers
+    # Only voices that own transcript text become participants. A voice can reach this point
+    # holding nothing: a sub-second false alarm inside a silent gap intersects no ASR segment,
+    # and a voice heard only under someone else stays unattributed by the rule above. Such a
+    # name cannot be filtered, renamed, or checked against the audio, so listing it would
+    # claim a participant the transcript cannot show. Numbering follows first appearance in
+    # the transcript, which is what the reader can actually see.
+    heard = {}
+    for segment in aligned:
+        if segment.speaker_id is not None:
+            heard.setdefault(segment.speaker_id, f"Speaker {len(heard) + 1}")
+    return aligned, [Speaker(id=sid, name=name) for sid, name in heard.items()]
 
 
 def weight_digest(path: Path):

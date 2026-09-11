@@ -1,7 +1,17 @@
 import type { ActionPatch, Answer, Health, Job } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, options);
+  const timeout = AbortSignal.timeout(
+    path.endsWith("/chat")
+      ? 240000
+      : options?.method === "POST"
+        ? 120000
+        : 20000,
+  );
+  const signal = options?.signal
+    ? AbortSignal.any([options.signal, timeout])
+    : timeout;
+  const response = await fetch(`/api${path}`, { ...options, signal });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const detail = body?.detail;
@@ -21,7 +31,7 @@ export const api = {
   jobs: (signal?: AbortSignal) => request<Job[]>("/jobs", { signal }),
   job: (id: string, signal?: AbortSignal) =>
     request<Job>(`/jobs/${id}`, { signal }),
-  example: () => request<Job>("/example"),
+  example: (signal?: AbortSignal) => request<Job>("/example", { signal }),
   upload: (file: File, meetingDate: string, language: string) => {
     const data = new FormData();
     data.append("file", file);

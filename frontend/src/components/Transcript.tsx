@@ -43,7 +43,7 @@ export function Transcript({
           <button
             key={speaker.id}
             className={`speaker-chip speaker-${i % 4}`}
-            disabled={job.provenance.sample}
+            disabled={job.provenance.sample || job.status !== "done"}
             title="Rename speaker"
             onClick={() => {
               setRenaming(speaker.id);

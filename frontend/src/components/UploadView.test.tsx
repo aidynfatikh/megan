@@ -48,3 +48,23 @@ test("unavailable services prevent uploads while allowing the labeled example", 
   );
   expect(onExample).toHaveBeenCalledOnce();
 });
+
+test("reselecting the active input tab preserves an already selected file", async () => {
+  const user = userEvent.setup();
+  const onUpload = vi.fn();
+  render(
+    <UploadView
+      health={health}
+      submitting={false}
+      onUpload={onUpload}
+      onExample={vi.fn()}
+    />,
+  );
+  const file = new File(["audio"], "meeting.wav", { type: "audio/wav" });
+  await user.upload(screen.getByLabelText("Meeting recording"), file);
+  await user.click(screen.getByRole("button", { name: "Upload audio" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create meeting report" }),
+  );
+  expect(onUpload).toHaveBeenCalledWith(file, "", "ru");
+});

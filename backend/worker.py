@@ -23,6 +23,12 @@ class Pipeline:
 
     async def run(self, job: Job, directory: Path, checkpoint):
         wav = directory / "normalized.wav"
+        # Older failed jobs may have saved ASR output before timestamp validation.
+        # Retry transcription instead of using those invalid sources in a report.
+        if job.duration_sec is not None and any(
+            segment.end > job.duration_sec + 1 for segment in job.segments
+        ):
+            job.segments = []
         if self.settings.diarization_backend == "none" and job.diarization_status != "done":
             job.diarization_status = "disabled"
             job.provenance.diarization_backend = "none"
@@ -48,13 +54,14 @@ class Pipeline:
             await checkpoint("transcribe")
             job.provenance.asr_backend = self.settings.asr_backend
             job.provenance.asr_model = self.settings.asr_model_path.name
-            job.segments = await transcribe(self.settings, wav, directory / "transcript.json")
-            if any(s.end > audio.duration + 1 for s in job.segments):
+            segments = await transcribe(self.settings, wav, directory / "transcript.json")
+            if any(s.end > audio.duration + 1 for s in segments):
                 raise AudioError("ASR timestamps extend beyond the recording.")
             # A small terminal timestamp overrun can arise from ASR frame rounding.
-            for segment in job.segments:
+            for segment in segments:
                 segment.end = min(segment.end, audio.duration)
                 segment.start = min(segment.start, segment.end)
+            job.segments = segments
             await checkpoint("transcript_ready")
         if not job.segments:
             job.diarization_status = "disabled"

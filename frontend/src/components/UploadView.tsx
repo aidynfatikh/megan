@@ -1,37 +1,48 @@
 import { useRef, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   AudioLines,
   FileAudio,
+  Mic,
   ShieldCheck,
   Upload,
   X,
 } from "lucide-react";
 import type { Health } from "../types";
+import { Recorder } from "./Recorder";
 
 export function UploadView({
   health,
   submitting,
   onUpload,
   onExample,
+  initialMode = "upload",
 }: {
   health: Health | null;
   submitting: boolean;
   onUpload: (file: File, meetingDate: string, language: string) => void;
   onExample: () => void;
+  initialMode?: "upload" | "record";
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState(initialMode);
+  const [recording, setRecording] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [language, setLanguage] = useState("ru");
-
   function choose(candidate: File | undefined) {
+    if (!candidate || submitting) return;
     setError("");
-    if (!candidate) return;
+    setFile(null);
     if (!/\.(mp3|wav|m4a)$/i.test(candidate.name)) {
       setError("Choose an MP3, WAV, or M4A recording.");
+      return;
+    }
+    if (!candidate.size) {
+      setError("This recording is empty. Choose a file with audio.");
       return;
     }
     if (candidate.size > (health?.max_upload_mb ?? 100) * 1024 * 1024) {
@@ -40,159 +51,258 @@ export function UploadView({
     }
     setFile(candidate);
   }
-
   return (
-    <div className="upload-view">
-      <div className="intro-tag">
-        <span /> YOUR PRIVATE MEETING WORKSPACE
+    <div className="capture-view panel-enter">
+      <a className="back-link" href="#/workspace">
+        <ArrowLeft size={14} /> All meetings
+      </a>
+      <div className="capture-heading">
+        <span className="eyebrow">A CONVERSATION WORTH KEEPING</span>
+        <h1>Let’s get the important bits.</h1>
+        <p>A recording, a little local AI, and a clear way forward.</p>
       </div>
-      <h1>
-        A conversation.
-        <br />
-        <span>A clear way forward.</span>
-      </h1>
-      <p className="intro-description">
-        Turn meeting recordings into decisions, next steps,
-        <br className="desktop-break" /> and a report you can trace back to the
-        conversation.
-      </p>
-      <form
-        className="upload-card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (file) onUpload(file, meetingDate, language);
-        }}
-      >
-        <div
-          className={`dropzone ${dragging ? "dragging" : ""}`}
-          onDragOver={(e) => {
+      <div className="capture-layout">
+        <form
+          className="upload-card"
+          onSubmit={(e) => {
             e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            choose(e.dataTransfer.files[0]);
+            if (
+              file &&
+              !recording &&
+              !submitting &&
+              health?.ready &&
+              !health.busy
+            )
+              onUpload(file, meetingDate, language);
           }}
         >
-          <input
-            ref={input}
-            className="sr-only"
-            type="file"
-            accept=".mp3,.wav,.m4a"
-            aria-label="Meeting recording"
-            onChange={(e) => choose(e.target.files?.[0])}
-          />
-          {file ? (
-            <>
-              <div className="upload-icon selected">
-                <FileAudio size={27} />
-              </div>
-              <h2 className="file-name">{file.name}</h2>
-              <p>{(file.size / 1024 / 1024).toFixed(1)} MB · Ready to upload</p>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  setFile(null);
-                  if (input.current) input.current.value = "";
-                }}
-              >
-                <X size={13} /> Choose a different file
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="upload-icon">
-                <Upload size={27} strokeWidth={1.5} />
-              </div>
-              <h2>Drop your meeting recording here</h2>
-              <p>MP3, WAV, or M4A · up to {health?.max_upload_mb ?? 100} MB</p>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => input.current?.click()}
-              >
-                Browse files <ArrowRight size={15} />
-              </button>
-            </>
-          )}
-        </div>
-        <div className="upload-options">
-          <label>
-            Meeting date <span className="muted">optional</span>
-            <input
-              type="date"
-              value={meetingDate}
-              onChange={(e) => setMeetingDate(e.target.value)}
-            />
-          </label>
-          <label>
-            Report language
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+          <div
+            className="capture-tabs"
+            role="group"
+            aria-label="Meeting input method"
+          >
+            <button
+              type="button"
+              aria-pressed={mode === "record"}
+              disabled={
+                recording || submitting || (mode === "upload" && !!file)
+              }
+              onClick={() => {
+                if (mode === "record") return;
+                setMode("record");
+                setFile(null);
+                setError("");
+              }}
             >
-              <option value="ru">Русский</option>
-              <option value="kk">Қазақша</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-        </div>
-        <p className="field-hint">
-          A meeting date helps resolve deadlines such as “tomorrow.”
-        </p>
-        {error && (
-          <p role="alert" className="form-error">
-            {error}
-          </p>
-        )}
-        <button
-          className="primary-button upload-submit"
-          disabled={!file || submitting || !health?.ready || health.busy}
-          type="submit"
-        >
-          <AudioLines size={17} />
-          {submitting
-            ? "Uploading…"
-            : health?.busy
-              ? "Processing another request…"
-              : "Create meeting report"}
-          <ArrowRight size={16} />
-        </button>
-        {health && !health.ready && (
-          <p className="setup-hint">
-            Local services need setup. Open <strong>System status</strong> or
-            explore the example below.
-          </p>
-        )}
-      </form>
+              <Mic size={16} /> Record a meeting
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "upload"}
+              disabled={
+                recording || submitting || (mode === "record" && !!file)
+              }
+              onClick={() => {
+                if (mode === "upload") return;
+                setMode("upload");
+                setFile(null);
+                setError("");
+              }}
+            >
+              <Upload size={16} /> Upload audio
+            </button>
+          </div>
+          {mode === "record" ? (
+            <Recorder
+              maxSeconds={health?.max_duration_sec ?? 1800}
+              maxBytes={(health?.max_upload_mb ?? 100) * 1024 * 1024}
+              disabled={submitting}
+              onRecording={setRecording}
+              onFile={setFile}
+              onDate={setMeetingDate}
+            />
+          ) : (
+            <div
+              className={`dropzone ${dragging ? "dragging" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!submitting) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                choose(e.dataTransfer.files[0]);
+              }}
+            >
+              <input
+                ref={input}
+                className="sr-only"
+                type="file"
+                accept=".mp3,.wav,.m4a"
+                aria-label="Meeting recording"
+                disabled={submitting}
+                onChange={(e) => {
+                  choose(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              {file ? (
+                <>
+                  <div className="upload-icon selected">
+                    <FileAudio size={29} />
+                  </div>
+                  <h2 className="file-name">{file.name}</h2>
+                  <p>
+                    {(file.size / 1024 / 1024).toFixed(1)} MB · Ready to upload
+                  </p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={submitting}
+                    onClick={() => setFile(null)}
+                  >
+                    <X size={13} /> Choose a different file
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="upload-icon">
+                    <Upload size={29} strokeWidth={1.5} />
+                  </div>
+                  <h2>Drop your meeting recording here</h2>
+                  <p>
+                    MP3, WAV, or M4A · up to {health?.max_upload_mb ?? 100} MB
+                  </p>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => input.current?.click()}
+                  >
+                    Browse files <ArrowRight size={15} />
+                  </button>
+                  <small>
+                    Up to {Math.floor((health?.max_duration_sec ?? 1800) / 60)}{" "}
+                    minutes per recording
+                  </small>
+                </>
+              )}
+            </div>
+          )}
+          <div className="capture-options">
+            <div className="upload-options">
+              <label>
+                Meeting date{" "}
+                <span className="muted">
+                  {mode === "record" && meetingDate
+                    ? "recording date"
+                    : "optional"}
+                </span>
+                <input
+                  type="date"
+                  value={meetingDate}
+                  disabled={submitting}
+                  onChange={(e) => setMeetingDate(e.target.value)}
+                />
+              </label>
+              <label>
+                Report language
+                <select
+                  value={language}
+                  disabled={submitting}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  <option value="ru">Русский</option>
+                  <option value="kk">Қазақша</option>
+                  <option value="en">English</option>
+                </select>
+              </label>
+            </div>
+            <p className="field-hint">
+              A meeting date helps resolve deadlines such as “tomorrow.”
+            </p>
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+            <button
+              className="primary-button upload-submit"
+              disabled={
+                !file ||
+                recording ||
+                submitting ||
+                !health?.ready ||
+                health.busy
+              }
+              type="submit"
+            >
+              <AudioLines size={17} />
+              {submitting
+                ? "Uploading…"
+                : health?.busy
+                  ? "Processing another request…"
+                  : "Create meeting report"}
+              <ArrowRight size={16} />
+            </button>
+            {!health ? (
+              <p className="setup-hint">
+                Connecting to your local services. Recording and file selection
+                are still available.
+              </p>
+            ) : (
+              !health.ready && (
+                <p className="setup-hint">
+                  Local services need setup. Open <strong>System status</strong>{" "}
+                  or explore the example below.
+                </p>
+              )
+            )}
+          </div>
+        </form>
+        <aside className="capture-guide">
+          <span className="eyebrow">WHAT YOU’LL GET</span>
+          <h2>
+            The conversation.
+            <br />
+            With a little clarity.
+          </h2>
+          {[
+            [
+              "01",
+              "The big picture",
+              "A concise summary, decisions, and the questions still open.",
+            ],
+            [
+              "02",
+              "A clear next step",
+              "Action items with owners and deadlines, when they were stated.",
+            ],
+            [
+              "03",
+              "A way to check",
+              "Timestamped sources. Listen, review, and edit before you follow up.",
+            ],
+          ].map(([number, title, text]) => (
+            <div className="guide-step" key={number}>
+              <span>{number}</span>
+              <div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            </div>
+          ))}
+          <div className="guide-private">
+            <ShieldCheck size={22} />
+            <strong>Just here. Just yours.</strong>
+            <p>Audio and AI processing stay on the machine running Megan.</p>
+          </div>
+        </aside>
+      </div>
       <button className="example-button" onClick={onExample}>
         Take a look around <span>Open an example report</span>
         <ArrowRight size={16} />
       </button>
-      <div className="privacy-note">
-        <ShieldCheck size={15} />
-        <span>Your recordings and models stay on this device.</span>
-      </div>
-      <div className="workflow-hints">
-        <div>
-          <span>01</span>
-          <strong>Capture the context</strong>
-          <p>Bring your recording, in its original language.</p>
-        </div>
-        <div>
-          <span>02</span>
-          <strong>Find the next step</strong>
-          <p>Decisions, owners, and deadlines in one place.</p>
-        </div>
-        <div>
-          <span>03</span>
-          <strong>Go back to the source</strong>
-          <p>Check a quote. Listen. Export your report.</p>
-        </div>
-      </div>
     </div>
   );
 }

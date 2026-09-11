@@ -1,12 +1,39 @@
 # Megan
 
-A local meeting workspace: record your microphone or upload MP3, WAV, or M4A; review a transcript, summary, decisions, topics, open questions, and action items; follow timestamped sources; edit tasks; export JSON, CSV, or task deadlines as ICS.
+**Turn meeting recordings into a plan you can check.**
 
-**Two models by default:** multilingual Whisper → Qwen through Ollama. Optional Sortformer adds speaker separation: Whisper → Sortformer → Qwen, still one model at a time. PostgreSQL stores jobs and report revisions. Files stay in `data/`; models stay in `models/`. No hosted inference, cloud database, analytics, or CDN assets are required at runtime.
+Megan is a local AI meeting assistant for teams that want to leave a meeting knowing what was decided, who owns the next step, and when it is due. Record your microphone or upload an audio file, review the generated report, and follow its timestamped sources back to the conversation.
 
-The demo target is **Fatikh's RTX 4060 laptop**. Development uses the M5 Mac with a different Whisper runtime. GPU compatibility and demo speed must be measured on Fatikh's machine. See [verification evidence](docs/VERIFICATION.md) and the [case analysis](docs/ANALYSIS.md).
+For example, someone assigns a task for Monday and later changes the deadline. Megan lets you inspect the extracted date, listen to the relevant passage, and correct the task before sharing it. Source links support human review; they do not guarantee that a model interpreted the conversation correctly.
+
+## What you can do
+
+- **Capture a meeting:** browser microphone recording or MP3, WAV, and M4A upload.
+- **Get a structured report:** transcript, summary, decisions, topics, open questions, risks, and action items with owners, deadlines, and priorities when supported by the recording.
+- **Check and edit:** play timestamped sources, review uncertain fields, and save task changes as report revisions.
+- **Ask about the conversation:** local meeting chat with citations and optional speaker filtering. Retrieval uses keyword and shared-prefix matching; no embedding model or vector database is required.
+- **Work across languages:** select Russian, Kazakh, or English for speech and report generation separately. Accuracy varies; see the [language checks](docs/MULTILINGUAL_TEST.md).
+- **Continue in your tools:** download JSON, CSV, or calendar tasks as ICS, or explicitly export a report and its citations to Notion.
+
+**Local by default.** After dependencies and models are installed, recording, inference, meeting chat, and file exports work without an internet connection. Notion is an optional online integration: text is sent only when you request an export, and audio stays local. Core features work without a Notion connection.
+
+## How it works
+
+```text
+Microphone / audio file
+  → Whisper: speech to text
+  → Sortformer: optional speaker separation
+  → Qwen through Ollama: structured meeting report
+  → Review sources, edit tasks, ask questions, export
+```
+
+The default pipeline uses two models; optional Sortformer adds a third stage. Models run one at a time. A React frontend provides the meeting workspace, the Python backend runs processing, and PostgreSQL stores jobs and report revisions. Files stay in `data/`; models stay in `models/`. No hosted inference, cloud database, analytics, or CDN assets are required at runtime.
+
+## Get started
 
 **Complete Docker app:** with models already installed, run `docker compose -f compose.app.yaml up -d --build --wait`, then open **http://127.0.0.1:8766/#/workspace**. Two recorded demos are included, with playable audio and saved reports. Speaker-aware chat and explicit Notion export are available on completed recordings. See [Docker setup and Notion connection](docs/DOCKER.md) for first-time downloads, persistence and CPU/GPU differences.
+
+The demo target is **Fatikh's RTX 4060 laptop**. Development uses the M5 Mac with a different Whisper runtime. GPU compatibility and demo speed must be measured on Fatikh's machine. See [verification evidence](docs/VERIFICATION.md), the [quality log](docs/QUALITY_LOG.md), and the [case analysis](docs/ANALYSIS.md). Native installation instructions follow below.
 
 ## What to push
 

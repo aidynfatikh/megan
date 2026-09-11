@@ -21,6 +21,15 @@ class DiarizationError(RuntimeError):
     pass
 
 
+# When exactly one voice intersects a segment, the uncovered remainder is silence rather than
+# another speaker, so there is no competing claim on the text. Requiring 80% there discarded
+# usable attribution; measured on real Sortformer turns it left about a tenth of all segments
+# unlabelled for no benefit. Segments touched by two or more voices stay unknown regardless:
+# without word timestamps their text cannot be split, and guessing a dominant speaker would
+# attribute one person's words to another.
+SINGLE_VOICE_COVERAGE = 0.5
+
+
 class SpeakerTurn(Model):
     start: float = Field(ge=0)
     end: float = Field(gt=0)
@@ -59,7 +68,7 @@ def align_speakers(segments: list[Segment], turns: list[SpeakerTurn]):
                 start, end = max(segment.start, t.start), min(segment.end, t.end)
                 covered += max(0, end - max(start, previous_end))
                 previous_end = max(previous_end, end)
-            if covered / (segment.end - segment.start) >= 0.8:
+            if covered / (segment.end - segment.start) >= SINGLE_VOICE_COVERAGE:
                 speaker_id = ids[next(iter(voices))]
         aligned.append(segment.model_copy(update={"speaker_id": speaker_id}))
     return aligned, speakers
@@ -76,7 +85,9 @@ def parse_rttm(text: str):
         if not line.strip():
             continue
         fields = line.split()
-        if len(fields) != 10 or fields[0] != "SPEAKER":
+        # RTTM is nine columns, or ten when the optional SLAT column is present. The speaker
+        # name stays at index 7 either way, because SLAT is appended last.
+        if len(fields) not in (9, 10) or fields[0] != "SPEAKER":
             raise ValueError("Invalid RTTM speaker interval")
         start, duration = float(fields[3]), float(fields[4])
         turns.append(SpeakerTurn(start=start, end=start + duration, speaker=fields[7]))
@@ -84,11 +95,11 @@ def parse_rttm(text: str):
 
 
 async def diarize(settings: Settings, audio: Path, directory: Path, duration: float):
+    if settings.diarization_backend == "none":
+        raise DiarizationError("Speaker separation is disabled")
     model = settings.diarization_model_path.resolve()
     if not model.is_file() or not model.stat().st_size:
         raise DiarizationError("Sortformer model is missing. Download it during setup.")
-    if settings.diarization_backend == "none":
-        raise DiarizationError("Speaker separation is disabled")
     nemo = settings.diarization_backend == "sortformer_nemo"
     if model.suffix != (".nemo" if nemo else ".gguf"):
         raise DiarizationError("Sortformer model format does not match its configured runtime")

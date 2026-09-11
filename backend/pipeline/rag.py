@@ -1,5 +1,4 @@
 import re
-from collections import Counter
 
 from backend.pipeline.structure import Ollama
 from backend.pipeline.validate import check_sources
@@ -10,25 +9,43 @@ STOPWORDS = set(
 )
 
 
+# Russian and Kazakh inflect heavily, so "бюджету" in a question must reach "бюджет" in a
+# turn. Comparing on a shared prefix is crude but keeps retrieval recall-biased: an extra
+# candidate excerpt costs a few tokens, while a missed one loses the answer entirely.
+STEM_MIN = 4
+
+
 def tokens(text):
     return [w for w in re.findall(r"\w+", text.casefold()) if w not in STOPWORDS and len(w) > 1]
 
 
+def same_stem(word: str, other: str) -> bool:
+    if word == other:
+        return True
+    shorter, longer = sorted((word, other), key=len)
+    return len(shorter) >= STEM_MIN and longer.startswith(shorter)
+
+
 def retrieve(question: str, segments: list[Segment], limit=8):
-    query = set(tokens(question))
-    scores = []
-    for index, segment in enumerate(segments):
-        words = Counter(tokens(segment.text))
-        score = sum(min(words[word], 2) for word in query)
-        if score:
-            scores.append((score, index))
-    indexes = set()
-    for _, index in sorted(scores, reverse=True)[:4]:
-        indexes.update(range(max(0, index - 1), min(len(segments), index + 2)))
     # Full short meetings avoid losing follow-up context to keyword mismatch.
     if len(segments) <= limit:
         return segments
-    return [segments[i] for i in sorted(indexes)[:limit]]
+    query = set(tokens(question))
+    scores = []
+    for index, segment in enumerate(segments):
+        words = tokens(segment.text)
+        score = sum(min(sum(1 for word in words if same_stem(term, word)), 2) for term in query)
+        if score:
+            scores.append((score, index))
+    # Strongest match first, each seed followed by its immediate context. Insertion order is
+    # relevance order, so trimming to the limit drops the weakest turns, never the latest ones.
+    selected: dict[int, None] = {}
+    for _, index in sorted(scores, key=lambda entry: (-entry[0], entry[1]))[:4]:
+        for neighbour in (index, index - 1, index + 1):
+            if 0 <= neighbour < len(segments):
+                selected.setdefault(neighbour, None)
+    # Restore chronological order so the model reads the excerpts as they were spoken.
+    return [segments[i] for i in sorted(list(selected)[:limit])]
 
 
 async def answer_question(ollama: Ollama, question: str, segments: list[Segment]) -> ChatAnswer:

@@ -368,3 +368,56 @@ async def test_disabling_optional_stage_before_retry_clears_stale_failed_state(
     assert new_job.diarization_status == "disabled"
     assert new_job.provenance.diarization_backend == "none"
     assert new_job.warnings == ["Another warning."]
+
+
+def test_rttm_without_the_optional_slat_column_is_accepted():
+    """RTTM is nine columns; the tenth is optional and runtimes differ."""
+    from backend.pipeline.diarize import parse_rttm
+
+    nine = parse_rttm("SPEAKER audio 1 0.50 2.00 <NA> <NA> speaker_1 <NA>\n")
+    ten = parse_rttm("SPEAKER audio 1 0.50 2.00 <NA> <NA> speaker_1 <NA> <NA>\n")
+
+    assert [(t.start, t.end, t.speaker) for t in nine] == [(0.5, 2.5, "speaker_1")]
+    assert [(t.start, t.end, t.speaker) for t in ten] == [(0.5, 2.5, "speaker_1")]
+
+
+async def test_disabled_backend_reports_the_profile_not_a_missing_file(tmp_path):
+    settings = Settings(
+        _env_file=None,
+        diarization_backend="none",
+        diarization_model_path=tmp_path / "absent.nemo",
+    )
+    with pytest.raises(DiarizationError, match="disabled"):
+        await diarize(settings, tmp_path / "audio.wav", tmp_path, 4)
+
+
+def test_single_voice_with_trailing_silence_is_still_attributed():
+    """The uncovered part of a one-voice segment is silence, not a competing speaker."""
+    turns = [SpeakerTurn(start=0.0, end=4.0, speaker="a")]
+    segments = [Segment(id="S1", start=0.0, end=7.0, text="x")]
+
+    aligned, _ = align_speakers(segments, turns)
+
+    assert [s.speaker_id for s in aligned] == ["speaker_0"]
+
+
+def test_segment_shared_by_two_voices_stays_unknown():
+    """Without word timestamps a mixed segment cannot be split, so it is never guessed."""
+    turns = [
+        SpeakerTurn(start=0.0, end=5.0, speaker="a"),
+        SpeakerTurn(start=5.0, end=7.0, speaker="b"),
+    ]
+    segments = [Segment(id="S1", start=0.0, end=7.0, text="x")]
+
+    aligned, _ = align_speakers(segments, turns)
+
+    assert [s.speaker_id for s in aligned] == [None]
+
+
+def test_a_brief_touch_of_one_voice_is_not_enough():
+    turns = [SpeakerTurn(start=6.9, end=7.0, speaker="a")]
+    segments = [Segment(id="S1", start=0.0, end=7.0, text="x")]
+
+    aligned, _ = align_speakers(segments, turns)
+
+    assert [s.speaker_id for s in aligned] == [None]

@@ -421,3 +421,20 @@ def test_a_brief_touch_of_one_voice_is_not_enough():
     aligned, _ = align_speakers(segments, turns)
 
     assert [s.speaker_id for s in aligned] == [None]
+
+
+def test_sub_word_flickers_do_not_block_attribution():
+    """A 0.16s flicker cannot hold a spoken word but made a whole segment unattributed."""
+    from backend.pipeline.diarize import MIN_TURN_SEC
+
+    assert MIN_TURN_SEC == 0.2
+    turns = [
+        SpeakerTurn(start=0.0, end=7.0, speaker="a"),
+        SpeakerTurn(start=3.0, end=3.16, speaker="b"),
+    ]
+    segments = [Segment(id="S1", start=0.0, end=7.0, text="x")]
+
+    # align_speakers still sees both voices; the diarizer drops the flicker before this point.
+    assert align_speakers(segments, turns)[0][0].speaker_id is None
+    kept = [t for t in turns if t.end - t.start >= MIN_TURN_SEC]
+    assert align_speakers(segments, kept)[0][0].speaker_id == "speaker_0"

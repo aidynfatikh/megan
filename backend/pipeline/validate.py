@@ -24,6 +24,21 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text)).casefold().strip()
 
 
+def comparable(text: str) -> str:
+    """Normalize for quote matching, ignoring punctuation.
+
+    Whisper invents the punctuation in a transcript; the speaker did not say it. A model that
+    quotes the same words while dropping a comma or an em dash was quoting real speech, so
+    rejecting it matches on an ASR artifact rather than on content. Punctuation becomes a space
+    so that neighbouring words cannot be fused into one token.
+    """
+    stripped = "".join(
+        " " if unicodedata.category(character).startswith("P") else character
+        for character in unicodedata.normalize("NFKC", text)
+    )
+    return re.sub(r"\s+", " ", stripped).casefold().strip()
+
+
 PRIORITY_CUES = {
     "high": r"\b(?:high priority|urgent|высок\w* приоритет\w*|срочно|срочный|шұғыл|жоғары басымдық)\b",
     "normal": r"\b(?:normal priority|medium priority|обычн\w* приоритет\w*|средн\w* приоритет\w*|қалыпты басымдық)\b",
@@ -70,20 +85,20 @@ MIN_CLAIM_QUOTE_CHARS = 10
 
 def matching_span(quote: str, segments: dict[str, Segment], segment_id: str) -> Segment | None:
     """Return the last segment a contiguous quote covers, or None when it is unsupported."""
-    wanted = normalize(quote)
+    wanted = comparable(quote)
     if not wanted:
         return None
     ordered = list(segments.values())
     start = next((i for i, s in enumerate(ordered) if s.id == segment_id), None)
     if start is None:
         return None
-    joined = normalize(ordered[start].text)
+    joined = comparable(ordered[start].text)
     if wanted in joined:
         return ordered[start]
     for index in range(start + 1, min(start + SPAN_MAX_SEGMENTS, len(ordered))):
         if ordered[index].start - ordered[index - 1].end > SPAN_MAX_GAP_SEC:
             break
-        joined = f"{joined} {normalize(ordered[index].text)}"
+        joined = f"{joined} {comparable(ordered[index].text)}"
         if wanted in joined:
             return ordered[index]
     return None
@@ -105,7 +120,7 @@ def check_sources(evidence: list[Evidence], segments: dict[str, Segment], field:
             if last is None:
                 quotes_match = False
                 reasons.append(f"quote_mismatch:{field}")
-            elif field == "claim" and len(normalize(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
+            elif field == "claim" and len(comparable(entry.quote)) < MIN_CLAIM_QUOTE_CHARS:
                 reasons.append(f"weak_evidence:{field}")
         sources.append(
             Source(
@@ -214,7 +229,7 @@ def ground_report(
             if not checks or not checks.references_valid or not checks.quotes_match:
                 return False
             return value is None or any(
-                normalize(value) in normalize(s.quote) for s in evidence[field]
+                comparable(value) in comparable(s.quote) for s in evidence[field]
             )
 
         assignee = entry.assignee

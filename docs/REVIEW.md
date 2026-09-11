@@ -72,8 +72,16 @@ labelled. Where two voices share a segment the text genuinely contains both spea
 word-level timestamps it cannot be split, and a dominant-speaker guess would attribute one
 participant's words to another. Those stay unknown deliberately.
 
-Unattributed share fell from 32.5% to 23.3% at 7 s segments. The residual is almost entirely the
-mixed case. All of this is 2-speaker audio; 3–4 speakers will straddle more.
+Sortformer also emits occasional turns shorter than a spoken word — 8.9% of all turns are under
+0.5 s, and its frame granularity is 0.16 s. One such flicker inside another speaker's stretch was
+enough to make a whole ASR segment multi-voice. Turns under 0.2 s are now discarded before voices
+are counted, which also prevents a flicker from appearing to be a fifth speaker. A 0.5 s cut was
+measured at 15.8% but rejected: it deletes genuine backchannels such as «да», which would then be
+misattributed to the surrounding voice rather than left unknown.
+
+Unattributed share fell from 32.5% to 23.3% with the coverage floor, and to 21.3% once flickers
+were dropped, at 7 s segments. The residual is almost entirely the genuinely mixed case. All of
+this is 2-speaker audio; 3–4 speakers will straddle more.
 
 ## Deadline resolution
 
@@ -114,6 +122,12 @@ already protected, because the owner, date or priority must appear inside the qu
 decisions, risks, open questions, summary, topic theses — were not. Thin claim evidence is now
 surfaced for review rather than silently marked verified. One-token deadline quotes such as
 "tomorrow" remain acceptable, as the extraction policy requires them.
+
+**Quote matching was sensitive to punctuation Whisper invented.** A model quoting the same words
+while dropping a comma or an em dash was rejected exactly like a fabrication, although the speaker
+never dictated the punctuation in the first place. Matching now compares words, with punctuation
+folded to a space so neighbouring words cannot be fused. Genuinely different words are still
+rejected.
 
 This does not make the check semantic. Evidence linkage still means the words were said, not
 that the claim drawn from them is correct.
@@ -176,5 +190,8 @@ Ordered by how likely it is to appear in an unfamiliar recording.
 | `pipeline/structure.py` | Capacity check extracted and reusable; prompt construction shared |
 | `worker.py` | Capacity checked before the speaker stage |
 | `config.py` | Upload cap aligned with the duration policy |
+| `pipeline/diarize.py` | Sub-word diarization flickers discarded before voices are counted |
+| `pipeline/validate.py` | Quote matching made insensitive to Whisper-invented punctuation |
+| `pipeline/rag.py` | Retrieval limit aligned with seed expansion, so chosen context is not discarded |
 
 Regression tests accompany each change and were confirmed to fail against the previous code.

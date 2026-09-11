@@ -86,3 +86,10 @@ Report accuracy remains incomplete: the longer excerpt converted completed work 
 5. Rehearse disconnected startup, new upload, sources, edits, export, and restart persistence using [OFFLINE.md](OFFLINE.md).
 
 Do not advertise the aspirational 45-second/two-minute target as measured. Human validation and RTX acceptance remain necessary before presenting the system as demo-ready.
+
+
+## Subsequent Russian quality pass — 2026-09-11
+
+The detailed staged record is [QUALITY_LOG.md](QUALITY_LOG.md). Final validation: **199 normal backend tests**, **14 actual-model cases**, deterministic replay of saved drafts against the final merged grounding checks, and successful CI for source commit `ea95f5a`. The final real Russian two-minute video completed the isolated three-model API pipeline in **132.11 seconds**, including **10.47 seconds** of transcription. JSON/CSV/ICS exports and original-audio range playback passed. Its general advice produced no personal tasks or confirmed decisions after the source checks.
+
+A separate controlled Russian recording preserved both named assignments and a corrected date, but omitted another deadline; that omission now receives a review flag. Some real-audio report questions and quotations remain unreliable, and an unseen English passage exposed missed conditional work. These results verify operation and specific improvements, not universal accuracy, a physical microphone, crowd noise, or Fatikh's RTX laptop.

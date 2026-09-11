@@ -19,11 +19,20 @@ def has_explicit_adoption(sources, segments):
     for source in sources:
         quote = normalize(source.quote)
         text = normalize(segments[source.segment_id].text)
-        if not quote or text.count(quote) != 1 or HYPOTHETICAL.search(text):
+        words = re.findall(r"\w+", quote)
+        if not words or HYPOTHETICAL.search(text):
             continue
-        offset = text.index(quote)
-        for match in ADOPTION.finditer(quote):
-            before, after = text[: offset + match.start()], text[offset + match.end() :]
+        pattern = r"(?<!\w)" + r"[\W_]+".join(re.escape(w) for w in words) + r"(?!\w)"
+        placements = list(re.finditer(pattern, text))
+        if len(placements) != 1:
+            continue
+        placement = placements[0]
+        # Match adoption in the full original segment: "agreed" inside "disagreed"
+        # is not an agreement, and a shortened quote cannot hide preceding negation.
+        for match in ADOPTION.finditer(text):
+            if match.start() < placement.start() or match.end() > placement.end():
+                continue
+            before, after = text[: match.start()], text[match.end() :]
             if NEGATED.search(before) or re.search(r"\bwould\s+(?:have\s+)?$", before):
                 continue
             if re.match(r"\s+(?:бы|емес|жоқ)\b", after):

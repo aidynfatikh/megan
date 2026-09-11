@@ -391,3 +391,28 @@ def test_decision_quote_cannot_hide_negation_just_before_quoted_adoption():
         }
     )
     assert not ground_report(draft, [Segment(id="S1", start=0, end=5, text=text)], None).decisions
+
+
+@pytest.mark.parametrize(
+    "text,quote,keep",
+    [
+        ("We agreed—to retain the logo.", "We agreed to retain the logo", True),
+        ("We disagreed on the change.", "agreed", False),
+    ],
+)
+def test_decision_context_matches_complete_words_across_asr_punctuation(text, quote, keep):
+    draft = report_with_action(text, status="completed")
+    draft = DraftReport.model_validate(
+        {
+            **draft.model_dump(),
+            "decisions": [
+                {
+                    "status": "confirmed",
+                    "text": "Retain the logo",
+                    "evidence": [{"segment_id": "S1", "quote": quote}],
+                }
+            ],
+        }
+    )
+    result = ground_report(draft, [Segment(id="S1", start=0, end=5, text=text)], None)
+    assert bool(result.decisions) == keep

@@ -43,7 +43,7 @@ Three independent caps governed input, and they bit at different points.
 |---|---|---|
 | Duration | `max_duration_sec` | 30 min |
 | Upload size | `max_upload_mb` | **9 min** for 44.1 kHz stereo WAV; 6 min at 24-bit |
-| Prompt capacity | `llm_context` minus output reserve | **EN 25.6 / RU 15.6 / KK 15.3 min** |
+| Prompt capacity | `llm_context` minus output reserve | **EN 25.6 / RU 23.4 / KK 16.4 min** at 16K |
 
 The Cyrillic penalty is structural: Russian and Kazakh get roughly 60% of English's capacity
 because they tokenize worse. A 20-minute Russian meeting was accepted, decoded, transcribed and
@@ -52,8 +52,11 @@ diarized before being refused.
 The size cap has been raised so that duration is the governing policy for uncompressed input,
 and the prompt bound is checked immediately after transcription, before the speaker stage.
 
-The per-language figures above were derived from a bytes-per-token estimate, which has since been
-replaced by the pinned Qwen tokenizer, so real capacity is now measured rather than approximated.
+The per-language figures above are measured with the pinned Qwen tokenizer, not estimated. Raising
+`LLM_CONTEXT` to 32768 roughly doubles them (EN 58, RU 53, KK 38 minutes) and was measured on the
+RTX 4060 at a peak of 4893 MiB of 8188, with no penalty on short recordings; at that setting the
+30-minute duration cap becomes the single binding limit for every supported language. The CUDA
+profile now ships 32768; the Mac profile is unchanged pending its own measurement.
 One consequence deserves attention: when that tokenizer file is absent, `prompt_tokens` falls back
 to counting UTF-8 bytes, which is deliberately strict and returns Russian capacity to roughly four
 minutes. Preflight now reports the tokenizer as a readiness check, because a machine missing it

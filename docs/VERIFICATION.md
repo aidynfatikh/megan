@@ -184,3 +184,35 @@ quotes and one flagged for review. JSON, CSV and ICS exports returned HTTP 200. 
 Still unmeasured: Kazakh or code-switched audio, more than two speakers, overlapping speech, peak
 VRAM during the diarization stage, repeated and concurrent runs, the browser UI on this machine,
 and a disconnected rehearsal.
+
+### Context window and the duration limit (2026-09-11, RTX 4060)
+
+Uploading a long recording reported `Recording exceeds the 1800-second duration limit`. That cap is
+the outer guard in `MAX_DURATION_SEC`, enforced at decode so an oversized file fails in under a
+second instead of transcribing first. The binding constraint underneath it is the context window.
+
+Measured with the pinned Qwen tokenizer, transcript capacity with speaker labels present:
+
+| `LLM_CONTEXT` | transcript budget | EN | RU | KK |
+|---|---:|---:|---:|---:|
+| 16384 | 12628 tok | 24 min | 22 min | 16 min |
+| 32768 | 29012 tok | 58 min | 53 min | 38 min |
+
+At 16K the duration cap sat above the real ceiling for every language, so a 25-minute Russian
+meeting passed the duration check and was then refused for capacity. At 32K every language clears
+30 minutes, which makes `MAX_DURATION_SEC` the single binding limit rather than one of three
+disagreeing ones.
+
+32K was then measured end to end. A **1500-second (25-minute) Russian recording** completed the
+three-model pipeline in **191 s**, a 0.13x realtime factor: transcribe 34.63 s, diarize 16.97 s,
+analyze 138.71 s. **Peak VRAM was 4893 MiB of 8188**, sampled every five seconds, and returned to
+15 MiB afterwards. 358 of 367 segments were attributed across two voices, and the report contained
+four summary sentences, two open questions, four risks and no invented tasks; seven of ten claims
+had valid references and matching quotes.
+
+Re-running the two-minute clip at 32K showed no penalty for short recordings: 77.0 s against 85.1 s
+at 16K, within run-to-run variation. The CUDA profile therefore ships `LLM_CONTEXT=32768`. The Mac
+profile is unchanged until it is measured on that machine, since its memory behaviour differs.
+
+Beyond 30 minutes the answer is chunking rather than a larger window, and map-reduce with
+reconciliation of superseded decisions remains deferred.

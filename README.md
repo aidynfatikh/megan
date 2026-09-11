@@ -69,7 +69,7 @@ In a second terminal:
 # .venv/bin/python scripts/setup_models.py --profile cuda
 ```
 
-Whisper downloads use pinned repository revisions and verified weight checksums from [model_manifest.json](scripts/model_manifest.json). Qwen's actual digest is recorded in `models/installed.json`; the script flags a changed tag digest for re-evaluation. These downloads happen only during explicit setup, never on a job request.
+Whisper and the local Qwen tokenizer use pinned repository revisions and verified checksums from [model_manifest.json](scripts/model_manifest.json). The tokenizer counts transcript tokens before inference; it is not another inference model. Qwen's actual model digest is recorded in `models/installed.json`; the script flags a changed tag digest for re-evaluation. These downloads happen only during explicit setup, never on a job request.
 
 ### 4. Build and run
 
@@ -117,7 +117,7 @@ Use the browser or CLI. Meeting date is optional; leaving it blank leaves relati
 
 Review the actual audio, not just the report's source labels. Try a two-minute recording, then a second job without restarting services. Check names, dates, negations, conditions, and later corrections. Confirm `nvidia-smi` returns to baseline between stages and after jobs. Watch system RAM as well as VRAM.
 
-Current limits: 100 MB, 30 minutes of decoded audio, plus a conservative context-size guard. Long or dense transcripts can exceed the 16K context even below the duration limit; the saved transcript remains available. There is no long-meeting chunking in this version. CPU-heavy inference uses subprocesses; only one recording or chat request runs at a time.
+Current limits: 350 MB, 30 minutes of decoded audio, plus a conservative context-size guard. Long or dense transcripts can exceed the 16K context even below the duration limit; the saved transcript remains available. There is no long-meeting chunking in this version. CPU-heavy inference uses subprocesses; only one recording or chat request runs at a time.
 
 ## Automated checks (TDD)
 

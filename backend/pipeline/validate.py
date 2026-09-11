@@ -3,7 +3,10 @@
 import re
 from datetime import date
 
+from backend.pipeline.conditions import omitted_final_condition
 from backend.pipeline.dates import resolve_due
+from backend.pipeline.deadlines import RELATIVE_WORDS, original_relative_deadline
+from backend.pipeline.decisions import has_explicit_adoption
 from backend.pipeline.evidence import adjacent_sources, normalize
 from backend.schemas import (
     Action,
@@ -124,6 +127,17 @@ def ground_report(
             review=Review(state="needs_review" if reasons else "unreviewed", reasons=reasons),
         )
 
+    decisions = []
+    for entry in draft.decisions:
+        if entry.status != "confirmed":
+            continue
+        candidate = claim(entry, f"D{len(decisions) + 1}")
+        if (
+            candidate.checks.references_valid
+            and candidate.checks.quotes_match
+            and has_explicit_adoption(candidate.evidence, segments)
+        ):
+            decisions.append(candidate)
     report = Report(
         title=draft.title,
         summary=[claim(c, f"SUM{i}") for i, c in enumerate(draft.summary, 1)],
@@ -135,15 +149,36 @@ def ground_report(
             )
             for i, t in enumerate(draft.topics, 1)
         ],
-        decisions=[
-            claim(c, f"D{i}")
-            for i, c in enumerate((d for d in draft.decisions if d.status == "confirmed"), 1)
-        ],
+        decisions=decisions,
         open_questions=[claim(c, f"Q{i}") for i, c in enumerate(draft.open_questions, 1)],
         risks=[claim(c, f"R{i}") for i, c in enumerate(draft.risks, 1)],
     )
     for i, entry in enumerate((a for a in draft.action_items if a.status == "outstanding"), 1):
         evidence, checks_by_field, reasons = {}, {}, []
+        if not entry.due_raw and any(
+            s.segment_id in segments
+            and normalize(s.quote) in normalize(segments[s.segment_id].text)
+            and RELATIVE_WORDS.search(s.quote)
+            for s in entry.evidence.task
+        ):
+            # A date word may belong to a condition, correction, or background context.
+            # Flag a possible omission without inventing its relationship to the task.
+            reasons.append("possible_omitted_deadline")
+        original_due = original_relative_deadline(entry, segments)
+        if original_due and not negates_date(
+            segments[original_due.segment_id].text, original_due.quote
+        ):
+            entry = entry.model_copy(deep=True)
+            entry.due_raw = original_due.quote
+            entry.evidence.due = [original_due]
+            reasons.append("translated_deadline_from_task_quote")
+        if not entry.conditions:
+            condition = omitted_final_condition(entry.evidence.task, segments)
+            if condition:
+                entry = entry.model_copy(deep=True)
+                entry.conditions = [condition.quote]
+                entry.evidence.conditions = [condition]
+                reasons.append("condition_from_task_context")
         entries_by_field = {}
         fields = ["task"]
         if entry.assignee or entry.speaker_id or entry.evidence.assignee:

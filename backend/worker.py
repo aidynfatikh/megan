@@ -123,6 +123,13 @@ class Pipeline:
         )
         await checkpoint("check_sources")
         report = ground_report(draft, job.segments, job.meeting_date)
+        job.warnings = [w for w in job.warnings if not w.startswith("Decision review:")]
+        filtered = sum(d.status == "confirmed" for d in draft.decisions) - len(report.decisions)
+        if filtered:
+            job.warnings.append(
+                f"Decision review: {filtered} suggested decisions lacked explicit agreement "
+                "in their cited words. Check the transcript for implicit decisions."
+            )
         for key, value in self.ollama.last_metrics.items():
             if key.endswith("duration"):
                 job.timings[f"llm_{key}"] = value / 1e9

@@ -42,5 +42,9 @@
   {
     "id": "conditional_and_background_en", "language": "en", "owners": ["Nora"], "dates": ["2026-09-12"], "conditional": true,
     "text": ["My train arrives at nine. This is just personal context, not a condition for our work.", "If the checksum matches, Nora will publish the archive tomorrow. Only the checksum is a dependency."]
+  },
+  {
+    "id": "general_advice_ru", "language": "ru", "owners": [], "dates": [], "decisions": 0,
+    "text": ["В этой лекции я объясняю, как обычно организуют рабочую встречу.", "Ведущий должен следить за временем. Хорошая практика — начать с проверки ранее выполненных задач.", "Рекомендуется заранее подготовить цифры. Это описание методики, сегодня мы ничего не поручаем конкретным людям."]
   }
 ]

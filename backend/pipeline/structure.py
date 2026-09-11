@@ -79,10 +79,48 @@ def decoder_schema(schema):
     return simplify(schema.model_json_schema())
 
 
+def extraction_messages(segments: list[Segment], language: str):
+    transcript = "\n".join(
+        f"[{s.id} | {s.start:.2f}-{s.end:.2f} | {s.speaker_id or 'unknown'}] {s.text}"
+        for s in segments
+    )
+    return [
+        {
+            "role": "system",
+            "content": POLICY
+            + f"\nWrite report prose in {language}; keep evidence quotes unchanged.",
+        },
+        {"role": "user", "content": f"<transcript>\n{transcript}\n</transcript>"},
+    ]
+
+
 class Ollama:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.last_metrics: dict = {}
+
+    def capacity_error(self, messages) -> str | None:
+        """Conservative prompt bound; the schema constrains decoding separately."""
+        prompt_bytes = len(json.dumps(messages, ensure_ascii=False).encode("utf-8"))
+        estimated_tokens = -(-prompt_bytes // PROMPT_BYTES_PER_TOKEN)
+        budget = self.settings.llm_context - self.settings.llm_output_tokens - 256
+        if estimated_tokens > budget:
+            return (
+                f"Transcript needs about {estimated_tokens} prompt tokens but only {budget} are "
+                "available. Use a shorter recording or increase the tested context limit."
+            )
+        return None
+
+    def check_capacity(self, segments: list[Segment], language: str):
+        """Reject an oversized transcript before the remaining audio stages run.
+
+        Speaker labels are attached after this point and lengthen the prompt slightly, so the
+        check inside generate() stays authoritative. This one exists to fail in seconds rather
+        than after diarization.
+        """
+        problem = self.capacity_error(extraction_messages(segments, language))
+        if problem:
+            raise ExtractionError(problem)
 
     async def tags(self):
         async with httpx.AsyncClient(
@@ -120,15 +158,9 @@ class Ollama:
             raise ExtractionError("The LLM did not release memory before the audio stage.")
 
     async def generate(self, messages, schema, *, retries=1):
-        # Conservative bound for transcript/prompt tokens; schema constrains decoding separately.
-        prompt_bytes = len(json.dumps(messages, ensure_ascii=False).encode("utf-8"))
-        estimated_tokens = -(-prompt_bytes // PROMPT_BYTES_PER_TOKEN)
-        budget = self.settings.llm_context - self.settings.llm_output_tokens - 256
-        if estimated_tokens > budget:
-            raise ExtractionError(
-                f"Transcript needs about {estimated_tokens} prompt tokens but only {budget} are "
-                "available. Use a shorter recording or increase the tested context limit."
-            )
+        problem = self.capacity_error(messages)
+        if problem:
+            raise ExtractionError(problem)
         async with httpx.AsyncClient(
             base_url=self.settings.ollama_base_url,
             timeout=self.settings.llm_timeout_sec,
@@ -190,21 +222,7 @@ class Ollama:
                         ) from None
 
     async def extract(self, segments: list[Segment], language: str) -> DraftReport:
-        transcript = "\n".join(
-            f"[{s.id} | {s.start:.2f}-{s.end:.2f} | {s.speaker_id or 'unknown'}] {s.text}"
-            for s in segments
-        )
-        return await self.generate(
-            [
-                {
-                    "role": "system",
-                    "content": POLICY
-                    + f"\nWrite report prose in {language}; keep evidence quotes unchanged.",
-                },
-                {"role": "user", "content": f"<transcript>\n{transcript}\n</transcript>"},
-            ],
-            DraftReport,
-        )
+        return await self.generate(extraction_messages(segments, language), DraftReport)
 
     async def answer(self, question: str, segments: list[Segment]) -> ChatDraft:
         transcript = "\n".join(f"[{s.id}] {s.text}" for s in segments)

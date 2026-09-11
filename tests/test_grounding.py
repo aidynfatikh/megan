@@ -1,7 +1,7 @@
 from datetime import date
 
-from backend.pipeline.validate import ground_report
-from backend.schemas import DraftReport, Segment
+from backend.pipeline.validate import check_sources, ground_report
+from backend.schemas import DraftReport, Evidence, Segment
 
 
 def source(segment_id="S1", quote="Дана отправит смету завтра."):
@@ -235,3 +235,75 @@ def test_missing_speaker_id_is_not_recovered_from_third_person_or_unknown_voice(
         segments = [Segment(id="S1", start=1, end=3, text=quote, speaker_id=speaker)]
         item = ground_report(DraftReport.model_validate(data), segments, None).action_items[0]
         assert (item.assignee, item.speaker_id) == (None, None)
+
+
+def test_quote_continuing_into_the_next_segment_is_grounded():
+    """Whisper splits mid-phrase; a contiguous quote is evidence, not invention."""
+    segments = {
+        s.id: s
+        for s in [
+            Segment(
+                id="S1", start=0, end=3, text="I think Alex should take the accessibility review"
+            ),
+            Segment(id="S2", start=3, end=6, text="and get it done before Thursday standup"),
+        ]
+    }
+    sources, checks, reasons = check_sources(
+        [Evidence(segment_id="S1", quote="accessibility review and get it done before Thursday")],
+        segments,
+        "task",
+    )
+
+    assert checks.quotes_match
+    assert reasons == []
+    # Playback must cover the whole quoted phrase, not just the cited segment.
+    assert sources[0].end == 6
+
+
+def test_quote_is_not_stitched_across_unrelated_parts_of_the_meeting():
+    segments = {
+        s.id: s
+        for s in [
+            Segment(
+                id="S1", start=0, end=3, text="I think Alex should take the accessibility review"
+            ),
+            Segment(id="S9", start=90, end=93, text="and get it done before Thursday standup"),
+        ]
+    }
+    _, checks, reasons = check_sources(
+        [Evidence(segment_id="S1", quote="accessibility review and get it done before Thursday")],
+        segments,
+        "task",
+    )
+
+    assert not checks.quotes_match
+    assert "quote_mismatch:task" in reasons
+
+
+def test_absent_quote_is_still_rejected():
+    segments = {
+        s.id: s
+        for s in [
+            Segment(id="S1", start=0, end=3, text="I think Alex should take the review"),
+            Segment(id="S2", start=3, end=6, text="before Thursday standup"),
+        ]
+    }
+    _, checks, _ = check_sources(
+        [Evidence(segment_id="S1", quote="Alex will handle the security audit")], segments, "task"
+    )
+
+    assert not checks.quotes_match
+
+
+def test_a_single_common_word_cannot_verify_a_claim():
+    segments = {"S1": Segment(id="S1", start=0, end=3, text="Мы обсудили бюджет и сроки")}
+    _, _, thin = check_sources([Evidence(segment_id="S1", quote="и")], segments, "claim")
+    _, _, solid = check_sources(
+        [Evidence(segment_id="S1", quote="обсудили бюджет")], segments, "claim"
+    )
+    # A one-token deadline quote such as "завтра" must stay acceptable for action fields.
+    _, _, due = check_sources([Evidence(segment_id="S1", quote="сроки")], segments, "due")
+
+    assert "weak_evidence:claim" in thin
+    assert solid == []
+    assert due == []

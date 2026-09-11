@@ -139,3 +139,15 @@ async def test_russian_transcript_of_a_realistic_meeting_fits_the_context(respx_
     ]
     await Ollama(Settings(_env_file=None)).extract(segments, "ru")
     assert route.called
+
+
+def test_capacity_is_checked_before_the_speaker_stage_runs():
+    """An over-long transcript must fail in seconds, not after diarization."""
+    client = Ollama(Settings(_env_file=None))
+    line = "Мы обсудили бюджет проекта и решили перенести срок поставки оборудования"
+    short = [Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 51)]
+    long = [Segment(id=f"S{i}", start=i * 5.0, end=i * 5.0 + 5, text=line) for i in range(1, 601)]
+
+    client.check_capacity(short, "ru")
+    with pytest.raises(ExtractionError, match="prompt tokens"):
+        client.check_capacity(long, "ru")

@@ -59,6 +59,9 @@ class Pipeline:
         if not job.segments:
             job.diarization_status = "disabled"
             return Report(title="No usable speech", content_status="no_usable_speech")
+        # An over-long transcript cannot produce a report, so stop before spending the speaker
+        # stage on it. The bound inside the extraction client remains authoritative.
+        self.ollama.check_capacity(job.segments, job.report_language)
         if self.settings.diarization_backend != "none" and job.diarization_status != "done":
             job.diarization_status = "running"
             job.provenance.diarization_backend = self.settings.diarization_backend

@@ -1,470 +1,376 @@
-# Megan — AI Meeting Intelligence
+# Megan — implementation plan
 
-**AI Steppe Tech Hack · Track 01 · Astana, Alem.ai · 8 hours → pitch + live demo**
+Updated 2026-09-11 after reviewing the case and initial plan. See [ANALYSIS.md](ANALYSIS.md) for the requirement analysis, technical findings, and decision rationale.
 
----
+**Status: core implementation locally validated; RTX acceptance pending.** The two-model app, PostgreSQL persistence, review UI, exports, and tests are implemented. See [README.md](../README.md) for launch instructions and [VERIFICATION.md](VERIFICATION.md) for measured results and remaining target-machine checks. Optional tiers below remain design options, not claims of implemented features.
 
-## 1. Context
+## 1. Outcome and constraints
 
-`docs/TZ_AI_Meeting_Intelligence.pdf` and `docs/AI_Steppe_Tech_Hack_Tasks.pptx` define the task: a **100% offline** service that ingests a meeting audio file (MP3/WAV/M4A) and produces a structured protocol — executive summary, decisions, topics, open questions, action items — exportable to CSV/JSON/PDF. Bonuses: speaker diarization, RU/KZ/EN multilingual and code-switched speech, RAG chat over the meeting, task-tracker integration, risk/blocker detection.
+Deliver a local app accepting MP3, WAV, and M4A recordings and producing:
 
-Three facts from the deck drive every decision in this document:
+- An executive summary of 3–5 supported sentences.
+- Decisions, topics with theses, and unresolved questions.
+- Tasks with owner, task text, deadline if stated, and priority.
+- A downloadable complete JSON report.
+- Timestamped sources that a reviewer can inspect and play.
 
-- **8 hours of development**, then pitching and Live Demo.
-- On demo day **the jury supplies a random audio file** — we cannot tune to known input.
-- **Processing speed of a 2-minute recording is explicitly scored.**
+The [brief](TZ_AI_Meeting_Intelligence.pdf) assigns 70 points to mandatory functionality, accuracy, and locality; 15 to bonus features; 10 to UI/performance; and 5 to presentation. The [deck](AI_Steppe_Tech_Hack_Tasks.pptx) gives eight development hours and unfamiliar jury audio. Two-minute processing speed is scored, but no numerical cutoff is supplied.
 
-### Scoring (100 points)
+**Team:** two developers. **Demo target:** Fatikh's RTX 4060 machine. **Development/test machine:** user's Apple M5 Mac, with 16 GB unified memory confirmed locally. The previous Linux, 8 GB VRAM, and 15 GB system-RAM figures must be checked on Fatikh's machine.
 
-| Block | Criterion | Max |
-|---|---|---|
-| Обязательный | Функциональность — transcription, summary, decisions, task table, export | 30 |
-| Обязательный | Точность ИИ — correct assignees, deadlines, **no hallucinations** | 20 |
-| Обязательный | **100% локальность** — zero requests to external commercial APIs | 20 |
-| Бонусный | Фичи — diarization, RAG chat, multilingual, integrations | 15 |
-| Бонусный | UI/UX и производительность — speed on a 2-min recording | 10 |
-| Бонусный | Презентация — quality of the live demo | 5 |
+**Database decision:** PostgreSQL, as requested by the user. It replaces SQLite entirely. Each machine runs its own local instance with the same versioned schema; no shared online database is required.
 
-**Read the scoring honestly:** 50 of the 100 points are *locality* and *accuracy*, not features. The plan below spends disproportionate effort on grounding/verification and on provable offline operation, because that is where the points are.
+**Product promise:** reviewable meeting outcomes processed on the device. A source link allows inspection; it does not guarantee correct recognition or interpretation.
 
-**Team:** 2 developers. **Dev A** = AI pipeline. **Dev B** = backend API + frontend.
+## 2. How many models, and how they run
 
----
-
-## 2. Hardware and the VRAM budget
-
-RTX 4060 Laptop — **8188 MiB VRAM**, 15 GB system RAM, 16 CPU cores, driver 575.51.03 / CUDA 12.9. Disk is being freed by the user, so **model size is not a constraint; VRAM and wall-clock are.**
-
-The three model families cannot be co-resident. The pipeline runs **stages strictly sequentially with explicit unload** between them (`del model; torch.cuda.empty_cache()`). A reload from page cache costs 2-4 s and is far cheaper than an OOM in front of the jury.
-
-| Stage | Model | VRAM | Notes |
+| Stage | Model | Required? | Execution |
 |---|---|---|---|
-| 1. Decode | ffmpeg → 16 kHz mono PCM | 0 | CPU |
-| 2. Diarize | pyannote community-1 | ~1.5 GB | unlimited speakers; load → run → unload |
-| 2b. Diarize (fast/fallback) | Sortformer streaming 4spk v2 | ~0.6 GB | ~10x faster, capped at 4 speakers |
-| 3. ASR | faster-whisper large-v3-turbo (fp16) | ~1.8 GB | load → run → unload |
-| 3b. KZ re-decode | kazakh-whisper-large-v3-turbo | ~1.8 GB | swaps into the same slot |
-| 4. Structure | Qwen3.5-9B Q4 via Ollama | ~5.0 GB | separate process, `keep_alive` managed |
-| 5. Embed (RAG) | multilingual-e5-small | 0 | **CPU on purpose** — ~2 s per meeting, keeps VRAM free |
+| Transcribe | One multilingual Whisper checkpoint; initially large-v3-turbo if target tests pass | Yes | After decoding |
+| Separate speakers | One diarizer: Community-1 or a preserved, working Sortformer | Bonus | After releasing ASR resources |
+| Produce report | One Qwen through local Ollama; evaluate `qwen3.5:4b` first | Yes | After releasing audio-model resources |
+| Answer questions | Reuse the same Qwen | Bonus | On demand, through the same scheduler |
+| Dense retrieval | Optional multilingual-e5-small on CPU | Deferred | Only if keyword retrieval is inadequate |
 
-**Peak VRAM at any instant ≈ 5.0-5.5 GB.** The headroom is deliberate: the demo machine is also driving a display, and Ollama's KV cache grows with context.
+**Two models cover the mandatory flow. Three include speaker separation.** Summary, decisions, tasks, and chat reuse the same LLM. Date resolution uses ordinary code. ffmpeg is an audio tool, not an AI model.
 
-**VRAM discipline rules:**
-- Ollama gets `keep_alive: 0` posted before any audio stage of the *next* job begins, so it releases VRAM.
-- The worker holds one `asyncio.Semaphore(1)` around all GPU work.
-- Never load an ASR model while a diarizer is resident — the stage machine enforces the order.
+```mermaid
+flowchart LR
+    A[Audio file] --> B[Decode locally]
+    B --> C[Whisper: timestamped transcript]
+    C --> D[Release ASR resources]
+    D --> E{Speaker separation enabled?}
+    E -->|Yes| F[One diarizer; then release it]
+    E -->|No| G[Unknown speaker labels]
+    F --> H[Qwen: structured report]
+    G --> H
+    H --> I[Validate sources and fields]
+    I --> J[Review, listen, export]
+```
 
-### Performance target
+Sequential stages reduce simultaneous model memory. They do not establish peak usage: measure weights, context/cache, runtime buffers, display use, and system RAM. Ollama lists the current [4B artifact at 3.4 GB](https://ollama.com/library/qwen3.5:4b) and [9B at 6.6 GB](https://ollama.com/library/qwen3.5:9b); neither is a runtime-memory guarantee. Promote 9B only after a measured extraction improvement justifies its memory and latency.
 
-**A 2-minute recording must complete in under 45 s end-to-end**: ~5 s diarize (incl. load), ~6 s ASR, ~25 s LLM, rest overhead. "Fast mode" (`qwen3.5:4b` + Sortformer) targets ~25 s.
+Do not download multiple diarizers or a specialized Kazakh checkpoint as prerequisites. The latter is a separate experiment after the baseline works.
 
-This is a scored criterion — **measure it with a stopwatch in the code, don't estimate it**, and put the real number on a slide.
+## 3. Running on both machines
 
----
+| Component | RTX 4060 demo profile | M5 Mac profile |
+|---|---|---|
+| Frontend | Built React SPA served locally | Same SPA; Vite during development |
+| API/data | FastAPI, Pydantic, local PostgreSQL, local job files | Same code, schema, and a separate local PostgreSQL instance |
+| ASR runtime | faster-whisper / CTranslate2 on CUDA | whisper.cpp using Metal |
+| LLM | Local Ollama and selected Qwen | Local Ollama; same checkpoint if memory permits |
+| Diarization | One backend after MVP | Optional; test disabled path first, CPU if practical |
+| Acceptance | Determines demo readiness and timing | Checks portability; does not replace target benchmarks |
 
-## 3. What already exists on this machine — do not rebuild
+The ASR split follows [CTranslate2's hardware support](https://opennmt.net/CTranslate2/hardware_support.html) and [whisper.cpp's Apple Silicon support](https://github.com/ggml-org/whisper.cpp). Implement a small adapter returning the same segment contract. Weight formats differ by runtime, and text/timestamps may differ too; bit-for-bit parity is not required.
 
-| Asset | Detail |
+Develop the Mac UI/API against clearly labeled fixtures first. Then smoke-test the complete audio workflow with Metal ASR and Ollama. If memory requires a smaller Mac checkpoint, label the profile and retain target-machine evaluation. Shared frontend code alone does not prove Mac inference works.
+
+Configuration: `ASR_BACKEND`, `ASR_MODEL_PATH`, `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `DIARIZATION_BACKEND`, `DATA_DIR`, `DATABASE_URL`. Bind the demo to loopback and use local connections for Ollama and PostgreSQL. Keep database credentials out of Git. Do not hard-code either developer's home directory or require a remote inference server.
+
+**Handoff to Fatikh:** push application code, dependency locks, database migrations, and setup/run instructions. Fatikh pulls the repository, installs dependencies, downloads the two model artifacts locally, starts PostgreSQL and Ollama, and tests the complete flow on his RTX laptop. Model weights, recordings, database files, and secrets stay out of Git. His existing model files must be checked before reusing them; their presence and compatibility are not yet verified. The Mac can run its own local models for development, but it is not required to serve inference to Fatikh's demo.
+
+## 4. Scope and cut order
+
+| Tier | Work | Gate |
+|---|---|---|
+| P0 | Audio formats; transcript; all mandatory report sections; unknown fields; JSON; local inference; failure states | Complete before optional model stages |
+| P1 | Source playback; progress; owner/date checks; CSV; correction tracking if time permits | Real upload → report works |
+| P2 | One diarizer; explicitly stated risks/blockers; local ICS export | P0 passes unfamiliar audio and leaves testing time |
+| P3 | Cited RAG; specialized Kazakh rerouting; PDF; dense retrieval; long-meeting reconciliation | Measured benefit and time remain |
+
+Multilingual Whisper is the baseline; evaluate RU/KZ/EN and mixed speech early. Specialized rerouting is the stretch feature. Prefer one or two useful bonuses to partially implementing every bonus.
+
+Cut order: dense embeddings → second ASR/routing → PDF → RAG → ICS → advanced editing/naming → diarization. Preserve mandatory sections, JSON, and correctness checks. Keep source playback unless it prevents completing basic audio processing.
+
+A local PostgreSQL server is part of the runtime. No model training, distributed queue, authentication system, or live tracker API is needed. The brief explicitly accepts local `.ics` generation for the integration bonus.
+
+## 5. Architecture and ownership
+
+```text
+Browser → FastAPI → local PostgreSQL (jobs, report revisions, edits)
+              │
+              └→ one job runner → local audio subprocess → Ollama on loopback
+                           └→ stage progress and saved artifacts
+
+data/jobs/<generated_job_id>/
+  original.<detected_format>
+  normalized.wav
+  transcript.json
+  report.json
+```
+
+PostgreSQL is the authoritative store for job state, report revisions, and edits; report payloads can use JSONB. Audio and transcript artifacts stay in local files, while `report.json` is generated from the stored report revision. Keep a small application connection pool and short transactions; never hold a database transaction open during model inference. Commit a report revision and its completed job status together. PostgreSQL runs as a separate local server, following its [client/server architecture](https://www.postgresql.org/docs/current/tutorial-arch.html).
+
+**Dev A / teammate:** target setup, ASR, optional diarization, extraction, semantic checks, model lifecycle, CLI, measurements.
+
+**Dev B / user:** API/persistence, orchestration, frontend, playback, exports, packaging, Mac adapter once the shared flow is integrated. Both own contract agreement and manual output evaluation.
+
+Use one API process and one active inference job for the demo. Reject another upload with a useful busy response rather than an unlimited implicit queue. If chat ships, route it through the same scheduler so Qwen cannot reload during an audio stage. UI, report reads, and playback remain responsive.
+
+Synchronous model work must execute outside the API event loop. A managed subprocess per audio stage provides a clear resource and failure boundary; await its exit before the next model. Retain processes only if measurements justify lifecycle complexity. Close ASR iterators and model references: a PyTorch cache call is not a universal unload mechanism. See [CTranslate2's memory guide](https://opennmt.net/CTranslate2/memory.html).
+
+Use Ollama's supported unload mechanism before any subsequent GPU audio stage and verify completion. Its [FAQ](https://docs.ollama.com/faq) documents model lifetime controls. Test consecutive jobs and chat → job transitions for retained memory.
+
+Persist stages and errors. On restart, mark unfinished work `interrupted` and expose retry. Save the transcript before extraction so an LLM retry does not require repeating ASR.
+
+Suggested layout; optional modules are created only when their gate is reached:
+
+```text
+backend/
+  main.py, schemas.py, db.py, worker.py, cli.py
+  migrations/              # versioned PostgreSQL schema changes
+  pipeline/
+    audio.py, asr.py, structure.py, validate.py, dates.py, export.py
+    diarize.py, align.py    # bonus
+    rag.py                 # stretch
+frontend/src/
+scripts/
+  preflight.py, setup_models.*, run_local.*, benchmark.py, verify_offline.*
+tests/fixtures/            # invented transcripts with expected facts
+docs/
+  ANALYSIS.md, PLAN.md
+```
+
+Keep weights, private audio, and generated job data out of Git.
+
+## 6. Shared contract and API
+
+Pydantic is authoritative. Generate frontend types from the API schema or validate mirrored types against shared fixtures. Agree on stable IDs, seconds as timestamp units, and nullable values before parallel implementation.
+
+| Entity | Semantics |
 |---|---|
-| `/home/fatikh/models/diar_streaming_sortformer_4spk-v2.nemo` | **450 MB, complete.** Load by path via `NEMO_MODEL_PATH`. The HF cache copy is a corrupt `.incomplete` blob — ignore it. |
-| `/home/fatikh/ML/ML` | Python 3.12 venv, **torch 2.11.0+cu129 with CUDA working**, **`nemo_toolkit 2.7.0` imports cleanly**, plus transformers 4.57, sentence-transformers, librosa, soundfile, openai-whisper, vllm 0.21. |
-| `/home/fatikh/issai/audio-test/diarize_local.py` | Working Sortformer harness — port the useful parts (below). |
-| `/home/fatikh/issai/audio-test/concat_speakers.py` | Span-merge + numpy slicing, avoids a known ffmpeg `atrim` OOM on long files. |
-| `/home/fatikh/issai/audios/*.mp3` | **5 long RU/KZ podcast-style recordings** with existing Sortformer output in `audios_diarization/jsons/`. Our test corpus. |
+| Job | Schema version, ID, status, stage, error, input metadata, timings, report revision |
+| Status | `queued`, `running`, `done`, `failed`, `interrupted`; empty content differs from failure |
+| Metadata | Audio duration; optional confirmed meeting date/timezone; report language |
+| Segment | Stable ID, original-audio start/end seconds, original-language text, nullable speaker ID; optional language estimate |
+| Speaker | Stable ID, display name, naming source: anonymous / explicit introduction / user edit |
+| Report | Summary statements; topics/theses; decisions; open questions; actions; optional risks |
+| Evidence | Existing segment IDs and short verbatim spans; times derived by the server |
+| Action | Stable ID, task, nullable owner text/speaker ID, raw/resolved deadline, priority, conditions, field-specific evidence |
+| Validation | Separate reference/quote checks, review reasons, user-review state; no universal `verified` boolean |
+| Provenance | Actual model IDs/revisions, runtime/profile, user-edited fields |
 
-**Reuse `~/ML/ML` rather than building a fresh venv.** A NeMo install from scratch is the single most fragile thing we could attempt inside an 8-hour window, and this venv already has a working one. Snapshot before touching it:
+Illustrative action fragment, not a complete job fixture:
 
-```bash
-source ~/ML/ML/bin/activate
-uv pip freeze > ~/ML/ML-requirements.backup.lock
-```
-
-Only additions needed: `pyannote.audio`, `faster-whisper`, `ctranslate2`, `rapidfuzz`, `fastapi`, `uvicorn`, `weasyprint`, `ics`.
-
-### What to port from `diarize_local.py`
-
-- The `load_model()` + **tuned streaming-preset block**: `chunk_len=124, chunk_right_context=1, fifo_len=124, spkcache_update_period=124, spkcache_len=188` (the "high latency / RTF 0.005" preset). The file also documents presets for very-high, 1.04 s low-latency and 0.32 s ultra-low — hard-won tuning, keep the table.
-- `_parse_segments()` — NeMo returns `"start end speaker"` strings.
-- The 16 kHz mono loader (soundfile + librosa resample).
-- Its output contract `{"data": {"segments": [{"start", "end", "speaker"}]}}` — we keep this shape.
-
-From `concat_speakers.py`: the merge constants `MERGE_GAP = 0.2`, `MIN_SEG_DUR = 0.2`. Sortformer emits 0.16 s-granularity segments including spurious sub-0.2 s ones; this cleans them. Applies equally to pyannote output.
-
-### Not installed — must be added
-
-Ollama (**absent entirely**), `pyannote.audio` (note: `pyannote.core`/`.database`/`.metrics` are present but **not** `.audio`), faster-whisper, ctranslate2, **any LLM weights**, **any Whisper weights**.
-
-### Explicitly ignore
-
-`issai/audio-test/diarize.py` and `transcribe.py` call the remote Mangisõz API (`mangisoz.nu.edu.kz`). **Using them would be disqualifying** on the 20-point locality criterion. Do not copy them into this repo at all.
-
----
-
-## 4. Model stack
-
-| Role | Choice | Rationale |
-|---|---|---|
-| Diarization (primary) | `pyannote/speaker-diarization-community-1` | Lowest published DER (~11.2 VoxConverse / ~11.7 AliMeeting-4), **unlimited speakers**, language-agnostic. ~4 lines to integrate. |
-| Diarization (fallback / fast) | `nvidia/diar_streaming_sortformer_4spk-v2` | Already on disk, no gating, RTF ~0.005. Insurance + "fast mode". Capped at 4 speakers. |
-| ASR (RU/EN) | `openai/whisper-large-v3-turbo` → CT2 | ~4x faster than large-v3, near-identical Russian quality. Speed is scored. |
-| ASR (KZ) | `shyngys879/kazakh-whisper-large-v3-turbo` → CT2 | ~1,500 h Kazakh fine-tune, strongest open KZ ASR. **Same architecture → same runtime, just swap weights.** |
-| LLM | `qwen3.5:9b` Q4 via **Ollama** | Released Mar 2026. ~5 GB at Q4, 201 languages, large reasoning jump (GPQA-D 81.7). |
-| LLM (fast mode) | `qwen3.5:4b` | ~2x tok/s for the speed demo. |
-| Embeddings | `intfloat/multilingual-e5-small` (CPU) | 471 MB, RU/KZ capable, zero VRAM. |
-
-### Model currency — verified Sept 2026, not assumed
-
-Sources are partly vendor/SEO blogs. **Confirm each with a real pull and a real run at hour 0**, and keep the previous generation one env var away.
-
-- **Qwen3.5 shipped its small tier on 2 Mar 2026** (9B/4B/2B/0.8B). The 9B is the new default for 8 GB cards. Adopt; keep `qwen3:8b` as the fallback tag.
-- **Turn thinking mode off for extraction.** This is an extraction task, not a reasoning task — thinking tokens are pure latency against a scored clock. A/B on one meeting before committing.
-- **Nothing has displaced Whisper for our language mix.** The Open ASR Leaderboard leader (Canary-Qwen-2.5B, 5.63% WER) and the speed leader (Parakeet-TDT, RTFx >2000) are **English-only models on English-only benchmarks** — irrelevant to Kazakh.
-- **Quality/Fast toggle on ASR:** turbo (~6 s per 2-min clip) vs full `large-v3` (~24 s, better multilingual WER). Same CT2 runtime, one env var.
-
----
-
-## 5. Decision log
-
-Every significant fork, with the reason. Written down so neither dev relitigates it at hour 5.
-
-| # | Decision | Rejected alternative | Why |
-|---|---|---|---|
-| D1 | FastAPI + SQLite + in-process asyncio worker | **Kafka + worker fleet** | One 8 GB GPU serializes everything; queue depth is always 1. Kafka buys throughput we cannot use and costs ~1.5-2 h of the 8. `Semaphore(1)` is an honest model of the hardware. |
-| D2 | **Ollama** for LLM serving | **vLLM** (already installed) | vLLM preallocates VRAM via `gpu_memory_utilization`, ~60 s startup, weak GGUF support. Its advantage is batched serving for many concurrent users — we have one. Ollama swaps models, unloads on demand, and the TZ names it explicitly. |
-| D3 | **pyannote community-1** as primary diarizer | **Sortformer as primary** | Sortformer is hard-capped at 4 speakers (see §6). The jury hands us an unknown file. |
-| D4 | Keep Sortformer as a second backend | Delete it | Already written, weights already on disk. Free insurance + a real "fast mode" + a benchmark to quote. |
-| D5 | faster-whisper/CT2 directly | **WhisperX** | Its alignment needs a per-language wav2vec2 phoneme model — Kazakh is not covered — and it assumes one language per file, conflicting with per-turn KZ routing. See §6. |
-| D6 | whisper-large-v3-turbo + KZ fine-tune | **Voxtral** | Voxtral beats Whisper on FLEURS (~5.9% vs ~7.4% WER) but covers **13 languages, Kazakh not among them**, and needs a second runtime. Two weight files in one CT2 runtime beats two frameworks. |
-| D7 | Reuse `~/ML/ML` venv | Fresh venv | A from-scratch NeMo install is the highest-variance task available to us. Snapshot it and move on. |
-| D8 | Vite + React + TS + Tailwind | Next.js / Streamlit | Local-only SPA against FastAPI; no SSR boundary to fight. Streamlit would forfeit most of the 10 UI/UX points. |
-| D9 | Embeddings on **CPU** | GPU embeddings | Saves ~1.2 GB VRAM for a 2 s CPU job on 16 cores. Trivially the right trade. |
-| D10 | Dates resolved in Python | LLM computes dates | LLMs reliably fail at date arithmetic. Removes a whole class of scored errors. |
-| D11 | Grammar-constrained JSON (Ollama `format`) | Prompt-and-parse | Schema-constrained decoding cannot emit invalid JSON or omit required evidence fields. |
-
----
-
-## 6. Diarization: two backends, one interface
-
-### Why Sortformer cannot be primary
-
-**There is no higher-capacity Sortformer.** NVIDIA ships only 4-speaker checkpoints (`diar_sortformer_4spk-v1`, `diar_streaming_sortformer_4spk-v2`, `-v2.1`). The limit is architectural, not a runtime flag — confirmed in our own checkpoint:
-
-```
-$ tar -xOf ~/models/diar_streaming_sortformer_4spk-v2.nemo model_config.yaml | grep spks
-max_num_of_spks: 4
-num_spks: 4
-```
-
-That is the output-head dimension of an arrival-order-sorted transformer. Raising it requires retraining.
-
-### Primary: pyannote community-1
-
-```python
-from pyannote.audio import Pipeline
-pipe = Pipeline.from_pretrained("pyannote/speaker-diarization-community-1",
-                                use_auth_token=HF_TOKEN).to(torch.device("cuda"))
-ann = pipe(wav_path)                      # optional: num_speakers= / min_speakers= / max_speakers=
-segments = [{"start": t.start, "end": t.end, "speaker": spk}
-            for t, _, spk in ann.itertracks(yield_label=True)]
-```
-
-> **Hour-0 blocking prerequisite.** `pip install pyannote.audio`, accept the gated model terms on huggingface.co, export `HF_TOKEN`, and **pull the weights while still online**. Afterwards `HF_HUB_OFFLINE=1` makes it fully local. Discovered broken at hour 6 with Wi-Fi off, this is unrecoverable.
-
-### Fallback / fast mode: Sortformer
-
-`pipeline/diarize.py` exposes `diarize(wav, backend="pyannote"|"sortformer") -> segments`. Both emit the identical contract, so nothing downstream knows or cares which ran.
-
-**Benchmark both on `~/issai/audios/*.mp3` in the 6:00–7:00 block** and put your own measured number in the pitch rather than a cited one — the most favourable published pyannote-vs-NeMo comparison is authored by pyannote.ai and should be discounted accordingly.
-
-### Rejected: WhisperX
-
-It bundles faster-whisper + wav2vec2 alignment + pyannote + word→speaker assignment — apparently a 1.5 h saving. But its word alignment requires a **per-language wav2vec2 phoneme model**; Russian is covered, **Kazakh is not**, and it assumes one language per file, which conflicts directly with per-turn KZ routing. Disabling alignment reduces it to a thin faster-whisper wrapper, leaving only the ~40-line max-overlap word→speaker assignment we write in `align.py`. Adopting a framework to avoid 40 lines while breaking a scored feature is a bad trade.
-
-Also rejected: `diar_msdd_telephonic` is NeMo's only MSDD checkpoint and is 8 kHz telephony-domain — mismatched for meeting audio.
-
----
-
-## 7. Architecture
-
-```
-Vite/React SPA  ──HTTP──▶  FastAPI  ──▶  SQLite (jobs, segments, items, embeddings)
-      ▲                       │
-      └────── SSE progress ───┤
-                              ▼
-                   asyncio worker · Semaphore(1) · the GPU is the queue
-                              │
-  ffmpeg ─▶ diarize ─▶ ASR (+KZ routing) ─▶ align ─▶ Ollama structure ─▶ verify ─▶ persist
-```
-
-One FastAPI process, one asyncio background task, one semaphore around GPU work. SSE streams `{stage, percent, elapsed}` to the UI.
-
-### Repo layout
-
-```
-megan/
-  backend/
-    main.py            # FastAPI app, routes, SSE
-    worker.py          # job state machine, GPU semaphore, stage load/unload
-    cli.py             # headless: process one file → JSON (used by verify_offline.sh)
-    schemas.py         # pydantic — single source of truth for the contract
-    db.py              # SQLite, no ORM needed
-    pipeline/
-      audio.py         # ffmpeg normalize → 16 kHz mono wav, duration probe
-      diarize.py       # diarize(wav, backend=...) -> segments
-      asr.py           # faster-whisper + word timestamps + per-turn KZ routing
-      align.py         # word → speaker by max temporal overlap
-      speakers.py      # LLM speaker naming, inline rename propagation
-      structure.py     # Ollama JSON-schema calls, map-reduce for long meetings
-      verify.py        # evidence grounding + deterministic date resolution
-      rag.py           # e5-small embeddings, hybrid retrieval, cited answers
-      export.py        # json / csv / pdf / ics
-  frontend/            # vite + react + ts + tailwind
-  scripts/
-    setup_models.sh
-    verify_offline.sh
-  docs/PLAN.md         # this document
-```
-
-### API surface
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/jobs` | multipart upload → `{job_id}`, starts processing |
-| `GET` | `/api/jobs/{id}` | full result document (the contract below) |
-| `GET` | `/api/jobs/{id}/events` | SSE stream of `{stage, percent, elapsed}` |
-| `PATCH` | `/api/jobs/{id}/speakers` | rename `speaker_0` → "Айдар", re-propagates |
-| `PATCH` | `/api/jobs/{id}/action-items/{n}` | edit an action item inline |
-| `POST` | `/api/jobs/{id}/chat` | RAG question → `{answer, citations[]}` |
-| `GET` | `/api/jobs/{id}/export?fmt=json\|csv\|pdf\|ics` | download |
-| `GET` | `/api/jobs/{id}/audio` | range-served audio for the player |
-| `GET` | `/api/health` | model status, VRAM, offline flag |
-
-> Port note: `validator-ui`'s audio route in the existing issai project has **no path-traversal guard** (`path.join(root, rel)` with `../` unsanitized). Do not reproduce that here — resolve and assert the path stays under the job directory.
-
-### The data contract — agree at hour 0
-
-Dev B builds the entire UI against a fixture of this before Dev A's pipeline exists. `schemas.py` is authoritative; mirror it into `frontend/src/types.ts`.
-
-```jsonc
+```json
 {
-  "job_id": "...", "status": "done",
-  "duration_sec": 124.5, "elapsed_sec": 41.2,
-  "meeting_date": "2026-09-11",
-  "languages": ["ru", "kk"],
-  "diarizer": "pyannote", "asr_model": "large-v3-turbo", "llm": "qwen3.5:9b",
-  "speakers": [{ "id": "speaker_0", "name": "Айдар", "name_confidence": 0.82 }],
-  "segments": [{ "id": "S12", "start": 74.2, "end": 79.8, "speaker": "speaker_0",
-                 "lang": "ru", "text": "...",
-                 "words": [{ "w": "...", "s": 74.2, "e": 74.5 }] }],
-  "summary": ["...", "..."],                        // 3-5 sentences
-  "topics":         [{ "title": "...", "theses": ["..."], "evidence": ["S12"] }],
-  "decisions":      [{ "text": "...", "evidence": ["S30"], "quote": "...", "verified": true }],
-  "open_questions": [{ "text": "...", "evidence": ["S44"], "quote": "...", "verified": true }],
-  "risks":          [{ "text": "...", "severity": "high", "evidence": ["S51"],
-                       "quote": "...", "verified": true }],
-  "action_items":   [{ "assignee": "Айдар", "speaker": "speaker_0", "task": "...",
-                       "due": "2026-09-19", "due_raw": "до пятницы",
-                       "priority": "high", "evidence": ["S30"],
-                       "quote": "...", "verified": true }],
-  "stats": { "items_total": 18, "items_verified": 18, "grounding_rate": 1.0 }
+  "id": "A1",
+  "task": "Отправить смету",
+  "assignee": {"text": "Дана", "speaker_id": null},
+  "due": {"raw": "завтра", "date": "2026-09-12", "resolution": "relative"},
+  "priority": "unspecified",
+  "conditions": [],
+  "evidence": {
+    "task": [{"segment_id": "S12", "quote": "Дана отправит смету завтра."}],
+    "assignee": [{"segment_id": "S12", "quote": "Дана отправит смету завтра."}],
+    "due": [{"segment_id": "S12", "quote": "завтра"}],
+    "priority": []
+  },
+  "checks": {"references_valid": true, "quotes_match": true},
+  "review": {"state": "unreviewed", "reasons": []},
+  "edited_fields": []
 }
 ```
 
----
+This example assumes a confirmed meeting date of 2026-09-11. A null speaker ID permits a named nonparticipant or unknown voice identity. `quotes_match` describes transcript comparison only.
 
-## 8. Accuracy strategy — where 20 of the points are
+Priority is `low | normal | high | unspecified`; unstated urgency stays unspecified. A deadline can have raw text and a null resolved date. Upload time and file modification time do not establish meeting date.
 
-The TZ scores *«корректность выделения исполнителей, дедлайнов и отсутствия галлюцинаций»*. Four deterministic mechanisms, all cheap:
-
-**1. Numbered transcript + mandatory evidence.** The prompt feeds `[S12 | 00:03:14 | Айдар] текст…`. The JSON schema makes `evidence: string[]` and `quote: string` **required**, and Ollama's grammar-constrained decoding means the model *cannot* omit them.
-
-**2. Post-hoc grounding check (`verify.py`).** For each item, normalize and fuzzy-match `quote` against the text of its cited segments (`rapidfuzz`, ratio ≥ 85). Failures are marked `verified: false` and rendered greyed with a warning badge rather than silently shown. Surface the rate in the UI: **"18/18 items verified against audio."** This is a concrete, demonstrable answer to the hallucination criterion — and it is honest, because it can fail visibly.
-
-**3. Dates computed in Python, never by the LLM.** The model returns `due_raw` ("до пятницы", "к концу месяца"); a deterministic resolver converts to ISO against `meeting_date`. Handles RU/KZ relative expressions via a small pattern table; unparseable values keep `due: null` and show `due_raw` verbatim rather than inventing a date.
-
-**4. Assignee must be a known speaker or a name found in the transcript.** Reject assignees that appear nowhere — a common hallucination mode.
-
-**Speaker naming:** a second short LLM pass maps `speaker_0 → "Айдар"` from self-introductions and vocatives, with a confidence score. The UI allows inline rename, which re-propagates through every panel.
-
-### The demo moment — build this early
-
-**Every action item, decision, risk and chat answer is clickable and seeks the audio player to its cited timestamp.** The judge clicks *«Айдар готовит смету до пятницы»* and hears Айдар say it. This is simultaneously the hallucination defence and the thing people remember. It is worth more than any additional feature — if something has to be cut, cut elsewhere.
-
-### Prompting strategy (`structure.py`)
-
-- **Single pass** when the transcript fits in ~8k tokens (covers a 2-min jury clip and most 20-min meetings).
-- **Map-reduce** beyond that: chunk on speaker-turn boundaries with ~10% overlap, extract per chunk, then a reduce pass that merges and de-duplicates. Segment IDs stay globally unique, so evidence survives the merge.
-- One call produces the whole document (summary + topics + decisions + questions + risks + actions) — fewer round trips than one call per section, and the model sees the whole meeting when deciding what a "decision" is.
-- Temperature 0. Thinking mode off. System prompt in Russian, since the content is RU/KZ.
-- Explicitly instruct: *"If nothing in the transcript supports an item, return an empty list. Do not infer."* Empty is correct and scores better than invented.
-
----
-
-## 9. RU/KZ code-switching
-
-Two-pass, per speaker-turn:
-
-1. Transcribe the full audio with `large-v3-turbo` (`word_timestamps=True`) — strong on RU/EN.
-2. For each diarized turn, run Whisper's **language-ID head only** on that turn's audio (encoder + one decoder step — milliseconds per turn).
-3. Turns scoring Kazakh above threshold are **re-decoded with the KZ model** and spliced back by timestamp.
-
-Both models are large-v3-turbo derivatives, so this is a weight swap inside one CT2 runtime, not a second pipeline. Per-segment `lang` is recorded in the contract and shown as a small badge in the transcript UI — cheap visible proof of the multilingual bonus.
-
-Ship behind `ENABLE_KZ_ROUTING`. If hour 5 looks tight, turn it off and the app still works.
-
----
-
-## 10. RAG chat
-
-- Chunk = one speaker turn (already have them), merged to ~40-80 words.
-- Embed with `multilingual-e5-small` **on CPU** — ~2 s for a whole meeting on 16 cores, 0 VRAM.
-- Store vectors as SQLite BLOBs; retrieve by brute-force numpy cosine. A meeting is a few hundred segments — an index would be premature.
-- **Hybrid:** union of top-k cosine and a simple keyword/substring match, which rescues exact-term questions ("бюджет", a person's name) that dense retrieval misses.
-- Answer with the same grounding contract: the LLM must cite segment IDs, and citations render as clickable timestamps.
-- Answer in the language of the question.
-
----
-
-## 11. Exports
-
-| Format | Implementation | Notes |
+| Method | Route | Behavior |
 |---|---|---|
-| JSON | the contract, verbatim | trivial |
-| CSV | action items table | columns: `assignee, task, due, due_raw, priority, speaker, timestamp, quote, verified` |
-| PDF | **WeasyPrint** (HTML+CSS) | Cyrillic-safe with an embedded DejaVu/Noto font. **Test Cyrillic rendering at hour 4, not hour 7.** |
-| ICS | `ics` package | one VEVENT per action item with a resolved `due` |
+| POST | `/api/jobs` | Audio + metadata → ID; validate format, limits, availability |
+| GET | `/api/jobs/{id}` | Status, error, timings, report |
+| GET | `/api/jobs/{id}/audio` | Seekable audio with range support |
+| GET | `/api/jobs/{id}/export?format=json` | Complete current report revision |
+| GET | `/api/health` | Runtime readiness; no invented network-request count |
+| GET | `/api/jobs/{id}/events` | Optional SSE; polling suffices initially |
+| PATCH | `/api/jobs/{id}/action-items/{item_id}` | Optional edits, provenance, updated checks |
+| PATCH | `/api/jobs/{id}/speakers/{speaker_id}` | Optional display rename with stable identity |
+| POST | `/api/jobs/{id}/chat` | Stretch: cited answer from this meeting |
 
-**Stretch (only if ahead of schedule):** Trello/Notion/Jira export as a **generated import file** (Trello JSON / Notion CSV), not a live API call. A live call would violate the locality requirement — this is a trap in the TZ's own bonus list. Say this out loud in the pitch; it shows you read the constraint properly.
+Resolve storage/audio paths from generated job IDs, not arbitrary uploaded filenames. Verify file content by decoding. Set explicit upload, duration, and processing limits from target tests, with clear errors.
 
----
+## 7. Pipeline rules
 
-## 12. 100% offline — 20 points for ~20 minutes of work
+### Audio
 
-- `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1` at runtime; every model resolved from a local path.
-- **`scripts/verify_offline.sh`** runs the complete pipeline inside a network namespace with no interfaces:
-  ```bash
-  sudo unshare -n python -m backend.cli process sample.mp3
-  ```
-  It produces a full protocol with **no network available at all**. This is unfalsifiable proof — run it live or screenshot it into the deck.
-- UI badge: **🔒 OFFLINE — 0 external requests**.
-- **Turn Wi-Fi off before the demo starts.**
-- Final review: grep `backend/` for any outbound host that is not `localhost`. Confirm no `openai`/`anthropic` SDK import survives.
-- Do not copy `issai/audio-test/diarize.py` or `transcribe.py` into the repo at all — even unused, a reviewer finding a `mangisoz.nu.edu.kz` call is a 20-point risk.
+Normalize to 16 kHz mono PCM, retaining the original file and timeline. Do not concatenate speaker-only audio before transcription. Removing silence requires a reversible time mapping; playback must refer to original time.
 
----
+Start with decoding/resampling. Add noise processing only after a comparison shows improved recognition. Test stereo, malformed files, silence, and speech following a long pause. Segment timestamps suffice for initial playback; word alignment is optional.
 
-## 13. Frontend
+### Extraction
 
-**Vite + React + TS + Tailwind.** Single page, four regions.
+Provide numbered transcript segments as data and request mandatory sections in one constrained JSON call when the full input fits. Instructions spoken in the recording remain meeting content, not commands to the assistant. No external tools are available to the extraction model.
 
-1. **Upload** — dropzone (MP3/WAV/M4A), then a live stage tracker driven by SSE: `decode → diarize → transcribe → analyze → verify`, each with elapsed time. The visible timer is a feature: it's the scored speed number, on screen.
-2. **Protocol** — Executive Summary, Decisions, Topics & theses, Open questions, Risks. Every item carries a ▶ that seeks the audio.
-3. **Transcript** — speaker-coloured, language badges, synced highlight with the audio player, inline speaker rename.
-4. **Action items** — editable table (assignee / task / due / priority), verification badges, export buttons.
-5. **Chat** — question box, answers with clickable citations.
+Evaluate thinking disabled where supported and verify actual behavior; see [Ollama's thinking API](https://docs.ollama.com/capabilities/thinking). Set explicit context/output budgets. Validate completion and schema as in the [structured-output documentation](https://docs.ollama.com/capabilities/structured-outputs). Allow one bounded repair for truncation/invalid output, then expose failure with the transcript retained.
 
-Header shows: offline badge, elapsed processing time, model names, and `items_verified / items_total`. Those four facts are exactly what the rubric rewards, so keep them permanently visible.
+Rules:
 
-Keep it dark, dense and fast. No animation budget.
+1. Decisions require agreement; distinguish proposals, negations, and hypotheticals.
+2. Reconcile later corrections before presenting final outcomes.
+3. Preserve conditions and dependencies in task text/fields.
+4. Extract owners only when the assignment relationship is supported; allow unknown owners and named nonparticipants.
+5. Require raw deadline evidence; resolve a small tested set of relative expressions against a confirmed meeting date.
+6. Leave unstated priority unspecified.
+7. Return empty lists when appropriate; never fill a quota of tasks.
+8. Cite summary claims and theses as well as tasks and decisions.
+9. Preserve names, amounts, dates, technical terms, and transcript languages. Default the report to Russian, with a visible language choice if implemented.
 
----
+Validate schema, reference existence, timestamp bounds, quote spans, field support cues, and date provenance. Exact normalized quote matching is a mechanical check; fuzzy matches trigger review. Neither proves semantic correctness. Human evaluation must distinguish the task, owner, deadline, and condition independently.
 
-## 14. Setup (`scripts/setup_models.sh`)
+For silent/unintelligible input, show no usable speech and empty substantive content; do not fabricate three summary sentences about silence.
 
-Runs at hour 0, in the background, while both devs scaffold.
+### Speakers
 
-```bash
-# 1. Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen3.5:9b && ollama pull qwen3.5:4b   # verify tags exist; else qwen3:8b
+After P0, add one backend. Prefer preserved working Sortformer code if it is actually available; otherwise time-box Community-1 setup. Community-1 allows flexible speaker counts and local loading; [Sortformer v2](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2) has a four-speaker ceiling. Choose using integration cost and local results.
 
-# 2. pyannote — GATED. Accept terms on huggingface.co first, then:
-export HF_TOKEN=...
-python -c "from pyannote.audio import Pipeline; \
-  Pipeline.from_pretrained('pyannote/speaker-diarization-community-1', use_auth_token='$HF_TOKEN')"
+Map transcript spans to diarized intervals; retain unknown attribution for overlap, gaps, and weak matches. Start with anonymous labels. A diarization failure produces a report with a visible attribution limitation, not failure of the mandatory flow. Record the backend used and its limitation.
 
-# 3. Whisper → CTranslate2
-ct2-transformers-converter --model openai/whisper-large-v3-turbo \
-  --output_dir models/whisper-turbo-ct2 --quantization float16
-ct2-transformers-converter --model shyngys879/kazakh-whisper-large-v3-turbo \
-  --output_dir models/whisper-kk-ct2 --quantization float16
+### Optional multilingual rerouting and chat
 
-# 4. Embeddings
-python -c "from sentence_transformers import SentenceTransformer; \
-  SentenceTransformer('intfloat/multilingual-e5-small')"
-```
+Language switches can occur within a speaker turn. Keep baseline multilingual ASR and compare task-critical words before adding a Kazakh checkpoint. If rerouting proves useful, group selected spans into one additional model pass, preserve contextual padding and original timestamps, and keep the baseline transcript for comparison. Do not reload weights for every turn or treat language detection as a correctness guarantee.
 
-Then **re-run one job with `HF_HUB_OFFLINE=1`** to prove nothing else is fetched at runtime.
+For chat, start with local keyword retrieval over this job's transcript, including neighboring segments for context, and reuse Qwen. Require existing segment IDs in answers and return “Not found in this meeting” when evidence is insufficient. Evaluate both an answerable question and an absent fact; never fill gaps from general knowledge. Dense embeddings remain optional and are unnecessary for the initial two-minute workflow.
 
----
+### Long inputs
 
-## 15. Schedule — 8 hours, 2 devs
+Budget prompt + transcript + schema + output within the configured context. Enforce the tested duration/context limit; never silently truncate. This is a declared product limit, not an organizer requirement.
 
-| Time | Dev A (pipeline/AI) | Dev B (backend + frontend) |
+Long-meeting support requires chronological chunks, stable evidence IDs, and reconciliation of canceled tasks, later corrections, and answered questions. If added, test a final-minute correction changing the exported report.
+
+## 8. Review UI and exports
+
+Use one workspace: upload, processing, then report with transcript and persistent audio player. Put mandatory report sections and the task table first. A source button reveals the quotation and seeks playback.
+
+Show actual stages and elapsed time. Use indeterminate progress where completion cannot be measured. Put model details in diagnostics. Labels should say “Source linked,” “Needs review,” or “Edited”; avoid “verified against audio,” fabricated confidence percentages, and unmeasured request counters.
+
+| Export | Priority | Acceptance |
 |---|---|---|
-| 0:00–0:30 | **Both:** scaffold repo, write `schemas.py` + `types.ts`, commit a **fixture JSON**. A starts `setup_models.sh` and **accepts pyannote's gated terms + pulls weights while online — do this first, it is the only irreversible deadline** | |
-| 0:30–2:00 | ffmpeg normalize → pyannote diarize (Sortformer behind the same interface) → faster-whisper word timestamps → `align.py`. Output = real contract JSON | FastAPI + SQLite + upload + job state + SSE; Vite shell, dropzone, stage tracker against the fixture |
-| 2:00–3:30 | `structure.py` (Ollama JSON-schema) + `verify.py` grounding + date resolver + speaker naming | Protocol view: summary/decisions/questions panels, transcript with speaker colours, **audio seek-on-click** |
-| 3:30–5:00 | KZ per-turn LID routing | Action items table (editable) + exports: JSON, CSV, PDF, ICS |
-| 5:00–6:00 | `rag.py`: CPU embeddings, hybrid retrieval, cited answers | Chat panel, speaker rename, risks panel, polish |
-| 6:00–7:00 | **Both: integration + accuracy tuning on `~/issai/audios/*.mp3`.** Measure 2-min latency. Benchmark pyannote vs Sortformer. **Feature freeze at 7:00** | |
-| 7:00–8:00 | `verify_offline.sh`, README, slides, **demo rehearsal on a file nobody has heard**, buffer | |
+| JSON | P0 | Complete report, evidence, metadata, provenance, current edits; valid UTF-8 |
+| CSV | P1 | Clearly a task-table export; correct quoting/Cyrillic/Kazakh; raw/resolved dates; safe formula-like cells |
+| ICS | P2 | Resolved deadlines only; stable UIDs and correct date semantics; unresolved dates skipped visibly |
+| PDF | P3 | Bundled Cyrillic/Kazakh fonts; pages checked for clipping and layout |
 
-**Hard checkpoint at 3:30** — audio → protocol must work end-to-end, however ugly. If it does not, drop KZ routing and RAG and spend 3:30–5:00 fixing it. A working must-have beats two broken bonuses: the must-have block is 70 points, the bonus block is 15.
+If editing ships, export the UI's current revision. Preserve generated values or a compact edit record. Changes to meaning clear the corresponding prior checks. Rename speakers through stable IDs.
 
-### Fallback ladder — decide now, not at hour 6
+## 9. Setup and offline acceptance
 
-| If this breaks | Do this |
-|---|---|
-| `faster-whisper`/CT2 conflicts with the venv's cuDNN | `openai-whisper` is already installed — accept ~3x slower |
-| pyannote gated download / token / torch 2.11 compat fails | Flip `backend="sortformer"` — implemented, weights on disk. 4-speaker cap but fully working |
-| Both diarizers fail | Whisper segments with no speaker labels. Diarization is a bonus, not a must-have |
-| Ollama install fails | `llama-cpp-python`, or vLLM (already installed) with an AWQ 7B |
-| `qwen3.5:9b` tag missing or OOMs | `qwen3:8b`, then `qwen3.5:4b` |
-| KZ model unavailable or poor | `large-v3` full with `language="kk"` |
-| WeasyPrint system libs missing | Render report HTML, use browser print-to-PDF |
-| Diarizer over/under-splits speakers | Expose `num_speakers`/`min`/`max` as a UI override, re-run only that stage |
-| Long meeting blows context | Map-reduce path in `structure.py` (built, not bolted on later) |
+Dev A starts with the actual 4060 machine:
 
----
+1. Record OS, CPU, VRAM, available RAM/disk, drivers, and existing runtimes. Check historical assets.
+2. Install/reuse the minimum compatible ASR and Ollama setup. Optional diarization dependencies wait.
+3. Download one ASR checkpoint and one Qwen; record versions, revisions/digests, local paths, and conversions.
+4. Run real short ASR and structured extraction, then a complete two-minute run with memory measurements.
+5. Verify all tokenizers, VAD helpers, weights, and UI assets are available locally.
 
-## 16. Risk register
+Dev B also installs/configures local PostgreSQL on both machines, using the same supported major version. Create the application database and role, apply versioned migrations, and verify connection readiness plus a write/read/restart persistence check. Include PostgreSQL availability in preflight and document database startup before the API. All database installation assets must be available before the offline rehearsal.
 
-| Risk | Likelihood | Impact | Mitigation |
+The [faster-whisper README](https://github.com/SYSTRAN/faster-whisper) states its runtime dependencies. Pin a tested combination. Preserve working environments; a package freeze is not a binary backup.
+
+Separate online setup from offline runtime. Set local model paths and relevant Hugging Face offline flags. Disable optional telemetry, downloads, cloud routing, and update checks. Pyannote documents metrics control in its [README](https://github.com/pyannote/pyannote-audio); Ollama documents disabling cloud features in its [FAQ](https://docs.ollama.com/faq).
+
+Full-app offline acceptance:
+
+- Build/serve the frontend locally with bundled assets/fonts.
+- Disable external interfaces, start PostgreSQL and the app locally, and freshly load the page.
+- Upload a new recording; complete report, playback, and JSON export.
+- Test every enabled bonus under the same conditions.
+- Record conditions and results; inspect browser/runtime networking before claiming zero external requests.
+
+On Linux, an additional isolation harness may start PostgreSQL, Ollama, API/worker, and a test client in the same namespace with loopback enabled and no external route. Do not use the old CLI-only `unshare -n`: it disconnects the client from host loopback services. Verify browser locality separately or include it in the isolated workflow.
+
+## 10. Eight-hour schedule
+
+Setup is included because advance preparation rules are unspecified. If permitted setup is already done, spend the saved time on tests. Start downloads immediately.
+
+| Time | Dev A — AI/demo machine | Dev B — API/UI/Mac | Exit condition |
 |---|---|---|---|
-| pyannote gated download not done early | Medium | **Fatal at demo time** | Hour-0 blocking task; Sortformer fallback already wired |
-| Installing into `~/ML/ML` breaks it | Low | High | `uv pip freeze` snapshot before touching it |
-| Jury audio is noisy / far-field | Medium | Medium | ffmpeg high-pass + loudnorm in `audio.py`; mention it |
-| Jury audio has >4 speakers | Medium | Medium | pyannote is primary precisely for this |
-| Jury audio is heavily code-switched | Medium | Medium | per-turn LID routing; degrade to RU-only cleanly |
-| LLM invents assignees/deadlines | Medium | **20 points** | Grounding check + Python date resolution + assignee whitelist |
-| 2-min processing over 45 s | Low | Up to 10 points | Fast mode toggle; measure early and often |
-| Demo laptop thermal throttle | Low | Medium | Plug in mains, run one warm-up job before pitching |
+| 0:00–0:30 | Preflight/downloads; agree on schema | PostgreSQL setup; shared fixture/schema; API/UI skeleton | Contract agreed; core artifacts downloading |
+| 0:30–1:30 | ASR smoke test; extraction from transcript | DB migrations/readiness; upload/status; fixture report; JSON | Core models and PostgreSQL run locally; all sections render |
+| 1:30–2:30 | CLI: real audio → report; first timing | Connect worker; persist status/errors | **Real upload produces all mandatory sections and JSON** |
+| 2:30–3:30 | Owner/date/condition/correction cases | Source playback; null and empty states | Critical facts checked against reviewed examples |
+| 3:30–4:30 | One diarizer if gate passed; otherwise fixes | Task table/CSV; Mac ASR adapter when core UI is stable | Attribution works or is cleanly disabled |
+| 4:30–5:30 | RU/KZ/EN/mixed tests; model choice | Mac audio smoke test; small bonus or UX fixes | Target profile chosen from measurements |
+| 5:30–6:00 | Both: integration and failure fixes | Both: built offline app | **Feature freeze; no new runtimes/models** |
+| 6:00–7:00 | Latency/memory/repeat jobs/offline | Exports/playback/errors/packaging | Target acceptance matrix passes |
+| 7:00–8:00 | Both: unfamiliar-audio rehearsal and pitch | Both: preserve build and launch steps | Reproducible demo with measured claims |
 
----
+Hard gates: at hour 1, fix a nonworking core runtime before adding features; at 2:30, cut all bonuses if the complete flow is missing; at hour 4, prioritize accuracy over bonuses if extraction is weak; at hour 6, freeze features.
 
-## 17. Verification
+These are planning time boxes, not guarantees about download or integration speed. A missed gate changes scope immediately.
 
-1. `scripts/setup_models.sh` completes; `ollama list` shows `qwen3.5:9b` + `qwen3.5:4b`; both CT2 dirs exist; pyannote weights in the HF cache. **Re-run one job with `HF_HUB_OFFLINE=1`** to prove nothing is fetched at runtime.
-2. `python -m backend.cli process ~/issai/audios/voice.bank-sektor-ekonomika.mp3` produces contract-valid JSON (pydantic validates), with `verified: true` on the large majority of items.
-3. **Timed run:** cut a 2-minute clip with ffmpeg, run it, assert elapsed < 45 s. Scored criterion — measure, don't estimate.
-4. **5+ speaker test:** build a synthetic 6-speaker clip by concatenating turns from different `~/issai/audios` recordings. Assert pyannote finds ~6, and that the Sortformer backend visibly collapses to 4 — this is the A/B that justifies D3 in the pitch.
-5. **Code-switch test:** a clip with both RU and KZ turns produces correct per-segment `lang` and readable Kazakh text.
-6. **Hallucination test:** feed a meeting with no action items; assert `action_items` is empty rather than invented.
-7. **Full UI pass:** upload → SSE stages → click an action item → audio seeks correctly → ask a chat question → answer with working citation → export all four formats and open each.
-8. `sudo ./scripts/verify_offline.sh` produces a complete protocol inside an empty network namespace.
-9. Grep `backend/` for any non-`localhost` outbound host.
-10. **Dry-run the whole demo on a file nobody on the team has heard.**
+## 11. Evaluation and timing
 
----
+Prepare at least five short meeting clips across RU/KZ/EN and mixed speech, with manually checked source spans and expected decisions/tasks. Include negative examples and hold one clip for rehearsal. Podcasts supplement ASR testing but cannot replace task-bearing meetings.
 
-## 18. Pitch outline (5 points, ~3 minutes)
+| Test | Pass condition |
+|---|---|
+| MP3/WAV/M4A | Each completes mandatory processing |
+| No tasks/decisions | Empty relevant lists; no invented work |
+| Owner ambiguity/nonparticipant | Unknown stays unknown; explicit nonparticipant assignment survives |
+| Negation/condition/correction | Rejected proposals excluded; conditions and final changes preserved |
+| Dates/priority | Correct supported dates; ambiguous dates raw/null; unstated priority unspecified |
+| Silence/unintelligible speech | Clear state with no invented content |
+| Evidence | References exist; playback reaches the relevant original audio |
+| Mixed speech | A speaker checks task-critical words; badges alone are insufficient |
+| Optional diarization | Reviewed attribution; overlap can remain unknown |
+| Failure/reload/retry | No permanent spinner; transcript retained after extraction failure |
+| Database startup/restart | Migrations work on both machines; committed jobs/edits persist; unavailable PostgreSQL produces a clear readiness error |
+| Consecutive jobs/chat → job | No contention, retained-memory failure, or stale results |
+| Offline fresh run | New file works from locally available runtime/assets |
+| Export | Opens correctly and matches the current UI revision |
 
-1. **The constraint first** — "100% offline. Wi-Fi is off right now." Turn it off on stage.
-2. **Live run** on the jury's file. Narrate the stage tracker; land on the elapsed number.
-3. **The protocol** — summary, decisions, action items.
-4. **The grounding click** — "every item is a citation" → click → audio plays the exact moment. *This is the pitch.*
-5. **One bonus, done well** — the RAG chat question, or the KZ/RU code-switch badge.
-6. **Close on the numbers:** 2-min recording in N seconds · M/M items verified against audio · 0 external requests · runs on one laptop GPU.
+Measure task precision and recall against expected tasks, and owner/deadline accuracy on matched tasks. Count unsupported claims separately. This catches invented work and a system that avoids errors by returning nothing. Show denominators and small-sample limitations; quote-match rate is not an accuracy score.
 
-Do not demo anything that was not rehearsed.
+Record user-visible time from submission to a rendered complete report, plus server stage timings: decode, ASR, optional diarization, model load, LLM prefill/generation, validation, persistence. Include retries and optional stages in the enabled profile's total.
+
+Measure one fresh-process and several repeated runs; declare cache/model residency, model versions, quantization, context/output budget, GPU peak use, and system-memory pressure. Consume the complete ASR iterator before stopping its timer.
+
+**45 seconds for two minutes is an aspirational internal target**, not an organizer threshold or measured promise. Establish a baseline first. If slow, remove optional stages and compare output budgets/context and the smaller LLM before sacrificing ASR quality. Choose based on semantic accuracy and elapsed time together.
+
+## 12. Fallbacks
+
+| Failure | Response |
+|---|---|
+| CUDA/CT2 fails | Time-box repair; use a locally smoke-tested Whisper runtime. An untested alternative is not a ready fallback. |
+| Qwen 4B extraction weak | Compare 9B on the same facts if it fits; improve constraints and preserve uncertainty. |
+| LLM memory/latency excessive | Bound context/output; avoid concurrency; choose a smaller tested local model. |
+| Diarization fails | Disable it; retain sources and explicit text-based owners. |
+| Mixed speech inaccurate | Preserve baseline/flag uncertainty; specialized rerouting only after a reviewed improvement. |
+| Mac adapter consumes demo time | Continue Mac UI/API and transcript tests; prioritize target readiness, then full Mac inference. |
+| Context exceeded | Clear limit unless long-input reconciliation already passed. |
+| Optional export/chat fails | Remove it from demo; retain full JSON report. |
+| Offline dependency missing | Complete local bundle and repeat full offline acceptance. |
+
+The planned Mac deliverable is the same mandatory workflow using Metal ASR and local Ollama. Give it a real audio smoke test. If incomplete at hackathon freeze, state that limitation and finish after demo-critical work; do not claim portability from fixtures alone.
+
+## 13. Demo and completion
+
+Prepare a roughly three-minute story, adjusted to the actual pitch allocation:
+
+1. State that processing is local and show offline conditions.
+2. Upload unfamiliar audio; show actual stages and elapsed time.
+3. Open summary, decisions, topics, questions, and tasks.
+4. Click a source and play it; explain any legitimately unknown field.
+5. Download JSON and show one rehearsed bonus if time permits.
+6. Quote measured latency and reviewed accuracy with test conditions.
+
+Preserve a known-good local build/model bundle and reproducible launch steps. Backup recordings help explain equipment failures but cannot replace required jury input. Keep fixture mode visibly labeled and out of the default demo configuration.
+
+The hackathon build is complete when mandatory functionality, enabled bonuses, offline operation, and rehearsal pass on the target. Cross-machine support is complete when the Mac's configured inference path also passes a real local audio run.
+
+## 14. Historical assets to verify
+
+The initial plan named these resources on the teammate's prior Linux setup. They are absent from this Mac workspace and were not inspected during this review:
+
+- `/home/fatikh/models/diar_streaming_sortformer_4spk-v2.nemo`
+- `/home/fatikh/ML/ML` with reportedly working NeMo/PyTorch
+- `/home/fatikh/issai/audio-test/diarize_local.py`
+- `/home/fatikh/issai/audio-test/concat_speakers.py`
+- `/home/fatikh/issai/audios/*.mp3` and existing diarization results
+
+If available, preserve the working NeMo environment. Historical Sortformer parameters: `chunk_len=124`, `chunk_right_context=1`, `fifo_len=124`, `spkcache_update_period=124`, `spkcache_len=188`. Historical merge settings: `MERGE_GAP=0.2`, `MIN_SEG_DUR=0.2`; validate around short acknowledgments and overlapping speech.
+
+The original plan says sibling scripts `diarize.py` and `transcribe.py` call remote Mangisõz inference. Do not reuse remote inference in this offline app. This is a historical warning, not a finding from inspecting those unavailable files.

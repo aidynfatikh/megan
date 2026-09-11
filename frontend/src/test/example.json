@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "id": "00000000-0000-0000-0000-000000000001",
+  "filename": "Illustrative meeting — no audio",
+  "status": "done",
+  "stage": "done",
+  "created_at": "2026-09-11T09:00:00Z",
+  "updated_at": "2026-09-11T09:00:00Z",
+  "meeting_date": "2026-09-11",
+  "report_language": "en",
+  "duration_sec": 60.0,
+  "elapsed_sec": 0.0,
+  "timings": {},
+  "segments": [
+    {
+      "id": "S1",
+      "start": 0.0,
+      "end": 12.0,
+      "text": "The landing page is ready. We agreed to launch after the accessibility review.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S2",
+      "start": 12.0,
+      "end": 24.0,
+      "text": "Alex will finish the accessibility review tomorrow. This is high priority.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    },
+    {
+      "id": "S3",
+      "start": 24.0,
+      "end": 36.0,
+      "text": "Mira will prepare the launch copy by 2026-09-18.",
+      "speaker_id": "speaker_2",
+      "language": "en"
+    },
+    {
+      "id": "S4",
+      "start": 36.0,
+      "end": 48.0,
+      "text": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+      "speaker_id": "speaker_0",
+      "language": "en"
+    },
+    {
+      "id": "S5",
+      "start": 48.0,
+      "end": 60.0,
+      "text": "We agreed to avoid paid analytics for the first release.",
+      "speaker_id": "speaker_1",
+      "language": "en"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "speaker_0",
+      "name": "Dana",
+      "name_source": "anonymous"
+    },
+    {
+      "id": "speaker_1",
+      "name": "Alex",
+      "name_source": "anonymous"
+    },
+    {
+      "id": "speaker_2",
+      "name": "Mira",
+      "name_source": "anonymous"
+    }
+  ],
+  "report": {
+    "title": "Website launch sync",
+    "summary": [
+      {
+        "id": "SUM1",
+        "text": "The landing page is ready, with launch dependent on an accessibility review.",
+        "evidence": [
+          {
+            "segment_id": "S1",
+            "quote": "The landing page is ready. We agreed to launch after the accessibility review.",
+            "start": 0.0,
+            "end": 12.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM2",
+        "text": "Alex owns the accessibility review, and Mira will prepare the launch copy.",
+        "evidence": [
+          {
+            "segment_id": "S2",
+            "quote": "Alex will finish the accessibility review tomorrow. This is high priority.",
+            "start": 12.0,
+            "end": 24.0
+          },
+          {
+            "segment_id": "S3",
+            "quote": "Mira will prepare the launch copy by 2026-09-18.",
+            "start": 24.0,
+            "end": 36.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "SUM3",
+        "text": "An analytics provider is still undecided; paid analytics will be excluded from the first release.",
+        "evidence": [
+          {
+            "segment_id": "S5",
+            "quote": "We agreed to avoid paid analytics for the first release.",
+            "start": 48.0,
+            "end": 60.0
+          },
+          {
+            "segment_id": "S4",
+            "quote": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+            "start": 36.0,
+            "end": 48.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "topics": [
+      {
+        "id": "T1",
+        "title": "Launch readiness",
+        "theses": [
+          {
+            "id": "T1.1",
+            "text": "The accessibility review is a launch dependency.",
+            "evidence": [
+              {
+                "segment_id": "S4",
+                "quote": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+                "start": 36.0,
+                "end": 48.0
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "T2",
+        "title": "Analytics",
+        "theses": [
+          {
+            "id": "T2.1",
+            "text": "Provider selection remains open.",
+            "evidence": [
+              {
+                "segment_id": "S4",
+                "quote": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+                "start": 36.0,
+                "end": 48.0
+              }
+            ],
+            "checks": {
+              "references_valid": true,
+              "quotes_match": true
+            },
+            "review": {
+              "state": "unreviewed",
+              "reasons": []
+            }
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "id": "D1",
+        "text": "Launch after the accessibility review.",
+        "evidence": [
+          {
+            "segment_id": "S1",
+            "quote": "The landing page is ready. We agreed to launch after the accessibility review.",
+            "start": 0.0,
+            "end": 12.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      },
+      {
+        "id": "D2",
+        "text": "Keep paid analytics out of the first release.",
+        "evidence": [
+          {
+            "segment_id": "S5",
+            "quote": "We agreed to avoid paid analytics for the first release.",
+            "start": 48.0,
+            "end": 60.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "open_questions": [
+      {
+        "id": "Q1",
+        "text": "Which analytics provider should we use?",
+        "evidence": [
+          {
+            "segment_id": "S4",
+            "quote": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+            "start": 36.0,
+            "end": 48.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "risks": [
+      {
+        "id": "R1",
+        "text": "Launch is blocked until the accessibility review passes.",
+        "evidence": [
+          {
+            "segment_id": "S4",
+            "quote": "We still need to choose an analytics provider. The launch is blocked until the accessibility review passes.",
+            "start": 36.0,
+            "end": 48.0
+          }
+        ],
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        }
+      }
+    ],
+    "action_items": [
+      {
+        "id": "A1",
+        "task": "Complete the accessibility review",
+        "assignee": "Alex",
+        "speaker_id": "speaker_1",
+        "due": {
+          "raw": "tomorrow",
+          "date": "2026-09-12",
+          "resolution": "relative"
+        },
+        "priority": "high",
+        "conditions": [],
+        "evidence": {
+          "task": [
+            {
+              "segment_id": "S2",
+              "quote": "Alex will finish the accessibility review tomorrow. This is high priority.",
+              "start": 12.0,
+              "end": 24.0
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S2",
+              "quote": "Alex will finish the accessibility review tomorrow. This is high priority.",
+              "start": 12.0,
+              "end": 24.0
+            }
+          ],
+          "due": [
+            {
+              "segment_id": "S2",
+              "quote": "tomorrow",
+              "start": 12.0,
+              "end": 24.0
+            }
+          ],
+          "priority": [
+            {
+              "segment_id": "S2",
+              "quote": "high priority",
+              "start": 12.0,
+              "end": 24.0
+            }
+          ]
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        },
+        "edited_fields": []
+      },
+      {
+        "id": "A2",
+        "task": "Prepare launch copy",
+        "assignee": "Mira",
+        "speaker_id": "speaker_2",
+        "due": {
+          "raw": "2026-09-18",
+          "date": "2026-09-18",
+          "resolution": "explicit"
+        },
+        "priority": "unspecified",
+        "conditions": [],
+        "evidence": {
+          "task": [
+            {
+              "segment_id": "S3",
+              "quote": "Mira will prepare the launch copy by 2026-09-18.",
+              "start": 24.0,
+              "end": 36.0
+            }
+          ],
+          "assignee": [
+            {
+              "segment_id": "S3",
+              "quote": "Mira will prepare the launch copy by 2026-09-18.",
+              "start": 24.0,
+              "end": 36.0
+            }
+          ],
+          "due": [
+            {
+              "segment_id": "S3",
+              "quote": "2026-09-18",
+              "start": 24.0,
+              "end": 36.0
+            }
+          ],
+          "priority": []
+        },
+        "checks": {
+          "references_valid": true,
+          "quotes_match": true
+        },
+        "review": {
+          "state": "unreviewed",
+          "reasons": []
+        },
+        "edited_fields": []
+      }
+    ],
+    "content_status": "ready"
+  },
+  "report_revision": 1,
+  "attempt": 1,
+  "warnings": [],
+  "error": null,
+  "provenance": {
+    "asr_backend": "example",
+    "asr_model": "none",
+    "llm": "none",
+    "llm_digest": null,
+    "diarization_backend": "none",
+    "sample": true
+  }
+}

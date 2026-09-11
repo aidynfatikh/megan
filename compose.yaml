@@ -1,0 +1,20 @@
+name: megan
+services:
+  postgres:
+    image: postgres:18.3
+    environment:
+      POSTGRES_USER: megan
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-megan}
+      POSTGRES_DB: megan
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U megan -d megan"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  postgres-data:

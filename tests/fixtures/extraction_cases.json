@@ -1,0 +1,22 @@
+[
+  {
+    "id": "no_assignments_en", "language": "en", "owners": [], "dates": [],
+    "text": ["We discussed the dashboard colors. The current dashboard has a blue header.", "We have not chosen a new color palette yet. This is still an open question.", "This was only a discussion. We made no decisions and assigned no tasks."]
+  },
+  {
+    "id": "corrected_deadline_ru", "language": "ru", "owners": ["Дана"], "dates": ["2026-09-18"],
+    "text": ["Дана отправит смету завтра.", "Исправляю срок: Дана отправит смету 18.09.2026, не завтра. Это окончательный срок.", "Мы решили оставить текущего поставщика. Вопрос о дополнительных расходах пока не решён."]
+  },
+  {
+    "id": "explicit_owner_kk", "language": "kk", "owners": ["Айдар"], "dates": ["2026-09-12"],
+    "text": ["Айдар есепті ертең жібереді.", "Жоба бюджеті бекітілді.", "Демо уақыты әлі белгісіз. Бұл сұрақты ашық қалдырамыз."]
+  },
+  {
+    "id": "conditional_mixed", "language": "ru", "owners": ["Mira"], "dates": ["2026-09-12"], "conditional": true,
+    "text": ["Әзірге релиз жасамаймыз.", "Если проверка пройдет, Mira will publish the page tomorrow. Это условное поручение: только после успешной проверки.", "We decided to keep the current logo. The analytics provider is still an open question."]
+  },
+  {
+    "id": "mentioned_name_is_not_owner", "language": "en", "owners": ["Alex"], "dates": ["2026-09-12"],
+    "text": ["Mira mentioned Alex during the discussion. Mira is not taking an action item.", "Alex will send the draft tomorrow.", "We decided to keep the existing title. The launch time has not been agreed."]
+  }
+]

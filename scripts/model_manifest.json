@@ -1,0 +1,22 @@
+{
+  "mac": {
+    "repository": "ggerganov/whisper.cpp",
+    "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+    "directory": "models",
+    "files": ["ggml-large-v3-turbo.bin"],
+    "weight": "ggml-large-v3-turbo.bin",
+    "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69"
+  },
+  "cuda": {
+    "repository": "dropbox-dash/faster-whisper-large-v3-turbo",
+    "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "directory": "models/whisper-turbo-ct2",
+    "files": ["config.json", "model.bin", "tokenizer.json", "preprocessor_config.json", "vocabulary.json"],
+    "weight": "model.bin",
+    "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+  },
+  "ollama": {
+    "model": "qwen3.5:4b",
+    "tested_digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+  }
+}

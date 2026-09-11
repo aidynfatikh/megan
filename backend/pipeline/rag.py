@@ -9,10 +9,15 @@ STOPWORDS = set(
 )
 
 
-# Russian and Kazakh inflect heavily, so "бюджету" in a question must reach "бюджет" in a
-# turn. Comparing on a shared prefix is crude but keeps retrieval recall-biased: an extra
-# candidate excerpt costs a few tokens, while a missed one loses the answer entirely.
+# Russian and Kazakh inflect heavily, so "кредитовании" in a question must reach "кредитованию"
+# in a turn. Comparing on a shared prefix keeps retrieval recall-biased: a surplus excerpt costs
+# a few tokens, a missed one loses the answer. Requiring one form to contain the other only
+# covers suffix ADDITION ("бюджет"/"бюджета"); Russian more often SUBSTITUTES an ending of the
+# same length, so a shared stem is compared directly. Five characters keeps unrelated words
+# apart ("проект"/"процесс" share only three), while four is allowed when it is one whole word,
+# which recovers short stems such as "банк"/"банка".
 STEM_MIN = 4
+STEM_CONFIDENT = 5
 
 
 def tokens(text):
@@ -22,8 +27,15 @@ def tokens(text):
 def same_stem(word: str, other: str) -> bool:
     if word == other:
         return True
-    shorter, longer = sorted((word, other), key=len)
-    return len(shorter) >= STEM_MIN and longer.startswith(shorter)
+    shared = 0
+    for left, right in zip(word, other, strict=False):
+        if left != right:
+            break
+        shared += 1
+    # Allow a single substituted ending on the shorter form, which is how short stems inflect.
+    return shared >= STEM_CONFIDENT or (
+        shared >= STEM_MIN and shared >= min(len(word), len(other)) - 1
+    )
 
 
 # Four seeds each contribute their own turn plus one neighbour on either side, so a limit below

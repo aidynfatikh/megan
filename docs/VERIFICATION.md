@@ -86,3 +86,54 @@ Report accuracy remains incomplete: the longer excerpt converted completed work 
 5. Rehearse disconnected startup, new upload, sources, edits, export, and restart persistence using [OFFLINE.md](OFFLINE.md).
 
 Do not advertise the aspirational 45-second/two-minute target as measured. Human validation and RTX acceptance remain necessary before presenting the system as demo-ready.
+
+## First RTX 4060 run (2026-09-11)
+
+The CUDA profile was brought up on Fatikh's laptop for the first time. This closes the
+"no RTX acceptance" gap; it does not replace human review of report accuracy.
+
+| Component | Observed |
+|---|---|
+| Machine | RTX 4060 Laptop, 8188 MiB VRAM, driver 575.51.03, CUDA 12.9; Linux 6.11, 15 GB RAM |
+| Python / PostgreSQL | 3.12.3 / 18.3 (Docker compose profile) |
+| Audio model/runtime | Whisper large-v3-turbo, faster-whisper/CTranslate2 on CUDA, `int8_float16` |
+| Report model/runtime | Qwen3.5 4B via the project Ollama at 127.0.0.1:11435 |
+| Ollama | **0.34.0**, installed per-user under `~/.local/ollama`. The tested Mac version is 0.33.2, so this is an untested version difference. |
+| Qwen digest | `2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd`, identical to the Mac |
+| Preflight | `ready: true` for ffmpeg, asr, report_tokenizer, frontend, postgresql, ollama |
+
+**Real Russian audio, first measurement on this machine.** A 120.0 s excerpt of a Kazakhstani
+banking interview (`voice.bank-sektor-ekonomika.mp3`, 05:00–07:00) completed in **39.8 s** with
+`DIARIZATION_BACKEND=none`.
+
+| Stage | Time |
+|---|---:|
+| decode | 0.11 s |
+| transcribe (Whisper) | 8.55 s |
+| analyze (Qwen, incl. 5.41 s model load) | 30.67 s |
+| check_sources | 0.01 s |
+
+Report generation is 77% of wall clock, matching the proportion recorded on the Mac. The Mac
+needed 55.2 s for the report stage on two minutes of English; this machine needed 30.7 s.
+
+Output: a Russian title and five summary sentences, one open question, and **no invented
+decisions, risks or action items** — correct for an interview excerpt containing no commitments.
+Six of six claims had valid references and matching quotes. One summary claim was accepted
+through the adjacent-segment path and flagged `adjacent_segment_quote:claim`. Numbers survived
+recognition intact (8,6 трлн / 1,3 трлн тенге).
+
+JSON, CSV and ICS exports returned HTTP 200; the CSV carried headers only and the ICS was an
+empty calendar, both correct with no action items. An audio range request returned HTTP 206.
+VRAM returned to 15 MiB after the run, so the unload discipline holds on CUDA.
+
+**A retrieval defect was found and fixed by this run.** Asked «Что сказали о кредитовании
+юридических лиц?», the chat abstained. The transcript says «кредитованию» (dative) while the
+question asks «кредитовании» (prepositional): the same length, so neither form contains the
+other, and stem matching by prefix containment covered only suffix addition. Russian more often
+substitutes an ending. Stems are now compared directly, and the same question answers from S1 at
+0.0 s in 6.1 s.
+
+Not covered by this pass: Sortformer on CUDA (`DIARIZATION_BACKEND` remained `none`), Kazakh or
+code-switched audio, peak VRAM under diarization, multi-speaker attribution on real meeting
+audio, repeated and concurrent runs, the browser UI, and a disconnected rehearsal. One excerpt
+from one recording is not a benchmark.

@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from backend.pipeline.rag import SEEDS, answer_question, retrieve
+from backend.pipeline.rag import SEEDS, answer_question, retrieve, same_stem
 from backend.schemas import ChatDraft, Evidence, Segment
 
 
@@ -96,3 +96,30 @@ def test_retrieval_keeps_every_segment_the_ranking_selected():
     selected = retrieve("Какой бюджет проекта утверждён?", segments)
 
     assert {f"S{i}" for i in (5, 20, 35, 50)} <= {s.id for s in selected}
+
+
+def test_stem_matching_covers_substituted_russian_endings():
+    """Russian usually replaces an ending rather than appending one."""
+    # Prepositional against dative: same length, so neither contains the other.
+    assert same_stem("кредитовании", "кредитованию")
+    assert same_stem("ликвидность", "ликвидности")
+    assert same_stem("отчет", "отчеты")
+    assert same_stem("банк", "банка")
+    # Unrelated words that merely start alike must stay apart.
+    assert not same_stem("проект", "процесс")
+    assert not same_stem("вода", "водка")
+    assert not same_stem("юридических", "юрлиц")
+
+
+def test_inflected_question_reaches_the_answering_turn():
+    filler = [
+        Segment(id=f"S{i}", start=float(i), end=i + 1.0, text="ничего важного не прозвучало")
+        for i in range(2, 30)
+    ]
+    answer = Segment(
+        id="S1", start=0.0, end=1.0, text="По кредитованию юрлиц у нас составили 8,6 трлн тенге."
+    )
+
+    selected = retrieve("Что сказали о кредитовании юридических лиц?", [answer, *filler])
+
+    assert "S1" in {s.id for s in selected}

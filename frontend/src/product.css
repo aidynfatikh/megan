@@ -245,14 +245,14 @@ summary:focus-visible {
 .main-content {
   max-width: 1230px;
   margin-inline: auto;
-  padding: 42px 45px 55px;
+  padding: 32px 45px 44px;
 }
 .dashboard-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 22px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 .eyebrow {
   font-size: 9px;
@@ -290,14 +290,14 @@ summary:focus-visible {
 .dashboard-start {
   display: grid;
   grid-template-columns: 1.08fr 1fr;
-  min-height: 257px;
+  min-height: 228px;
   background: #eef1e1;
   border: 1px solid #dce4c9;
   border-radius: 11px;
   overflow: hidden;
 }
 .start-copy {
-  padding: 30px 31px;
+  padding: 24px 28px;
   position: relative;
   z-index: 1;
 }
@@ -311,7 +311,7 @@ summary:focus-visible {
   font-size: 34px;
   color: #55663a;
   line-height: 1.08;
-  margin-block: 16px 23px;
+  margin-block: 12px 18px;
 }
 .start-actions {
   display: flex;
@@ -423,7 +423,7 @@ summary:focus-visible {
 .workspace-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: 27px 0 28px;
+  padding: 22px 0;
   border-bottom: 1px solid #e5e8dc;
   gap: 18px;
 }
@@ -447,7 +447,7 @@ summary:focus-visible {
   color: #4d672f;
 }
 .meeting-library {
-  margin-top: 30px;
+  margin-top: 24px;
 }
 .library-heading {
   display: flex;

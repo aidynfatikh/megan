@@ -89,3 +89,9 @@ A separate clean synthetic meeting (`4c46809d-ac5b-4b6c-82fa-742500ad40ad`) comp
 The local model scheduler was occupied by another request during final Q&A verification. The real busy state was checked in the browser; request submission and answer rendering were checked with the frontend API fixture. A new live model answer is not claimed as verified. Raw audio, test artifacts, and screenshots are kept under ignored `.local/`, not in Git. The three controlled verification meetings remain identifiable in local history.
 
 This verification does not replace physical-microphone, Safari/iOS, long-recording, or RTX acceptance testing.
+
+## Spacing and responsive refinement
+
+The landing hero now uses 32–56px top padding instead of 123–150px on desktop, a smaller fluid headline, and adjacent primary/sample actions where space allows. Section spacing and the dashboard introduction were tightened so useful content appears sooner. Narrow phones keep the header controls inside the navigation; tablets keep the sample report unobstructed; phone previews size themselves to their content.
+
+The landing, dashboard, upload, and sample-report pages were checked at 320, 390, 768, 1024, 1440, and 1920px widths (24 combinations). All loaded without page-level horizontal overflow or a development error overlay. The landing's primary action was visible without scrolling at each tested viewport. Production build and CSS formatting checks passed. Screenshots and measurement results are under ignored `.local/`.
